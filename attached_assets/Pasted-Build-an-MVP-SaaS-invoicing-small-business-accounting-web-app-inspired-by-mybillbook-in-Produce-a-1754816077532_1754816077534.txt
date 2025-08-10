@@ -1,0 +1,155 @@
+Build an MVP SaaS invoicing & small-business accounting web app inspired by mybillbook.in. Produce a working repo that can be run on Replit. Deliver frontend, backend, DB init SQL / Prisma schema & migrations for MySQL, sample data (seed), README, and deployment instructions. Use the following constraints and deliverables.
+
+OVERVIEW / STACK
+- Frontend: React (Vite) + TypeScript + Tailwind CSS + React Router.
+- Backend: Node.js + Express + TypeScript.
+- Database: **MySQL** (Prisma ORM).
+- Auth: JWT (access + refresh tokens) and bcrypt password hashing.
+- ORM / DB client: **Prisma** configured for MySQL.
+- Dev scripts: `npm run dev` (start frontend + backend concurrently), `npm run start` for production.
+- Provide basic OpenAPI-style API docs (e.g., swagger.json or openapi.yaml).
+
+IMPORTANT: Replit connection
+- Use `process.env.DATABASE_URL` for the MySQL connection string in the form:
+  `mysql://<USER>:<PASSWORD>@<HOST>:3306/<DBNAME>`
+- Provide `.env.example` with placeholders for `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`.
+- Add README section: how to add the `DATABASE_URL` to Replit Secrets (Secrets / Environment variables).
+
+FEATURES (MVP)
+- Single-company per account (no multi-tenant in MVP).
+- User accounts: signup, login, logout, password reset (mock email), user profile.
+- Entities: Customers, Products/Services (inventory), Invoices, Sales (optional sales order), Payments, Expenses, Tax settings (GST/VAT).
+- Inventory: track stock in/out by purchase and invoice (invoice reduces stock unless setting allows negative).
+- Invoice lifecycle: draft -> issued -> paid -> cancelled. Automatic invoice numbering (see business logic).
+- Invoice PDF export (server-side HTML -> PDF using `puppeteer` or `html-pdf`).
+- Reports: Sales list, filters (date range, customer), P&L (Revenue, COGS, Expenses, Gross/Net profit).
+- Dashboard: recent invoices, receivables, low-stock alerts, basic charts (placeholders accepted).
+- Role: single admin user in MVP.
+- Validation & business rules: required invoice fields, optional "allow negative stock" flag.
+- Currency toggle (USD / INR).
+
+UI PAGES (minimum)
+- /signup, /login, /forgot-password
+- /dashboard
+- /customers (list/create/edit)
+- /products (list/create/edit) (fields: sku, cost, price, stock_qty)
+- /invoices (list/create/edit/view/pdf)
+- /sales (optional simplified)
+- /expenses (list/create/edit)
+- /reports/pnl (date-range selector)
+- /settings (company info, tax, currency)
+- Responsive layout: left nav, top bar with search + user menu, main content panel.
+
+DATABASE SCHEMA (Prisma + MySQL)
+- Provide a `prisma/schema.prisma` file configured for `provider = "mysql"` and the `DATABASE_URL` env var.
+- Core models (translated to Prisma models and MySQL tables):
+  - User(id, email(unique), passwordHash, name, role, createdAt, updatedAt)
+  - Company(id, userId, name, address, gstin, currency, timezone, createdAt)
+  - Customer(id, companyId, name, email, phone, billingAddress, createdAt)
+  - Product(id, companyId, sku, name, description, priceDecimal, costDecimal, stockQty, createdAt)
+  - Invoice(id, companyId, customerId, invoiceNo, date, dueDate, status, subTotal, taxTotal, total, createdAt)
+  - InvoiceItem(id, invoiceId, productId, description, qty, unitPrice, taxRate, lineTotal)
+  - Payment(id, invoiceId, amount, method, paidAt, reference)
+  - Expense(id, companyId, vendor, amount, category, date, notes)
+  - JournalEntry(optional simplified)
+- Also provide a plain SQL migration file (MySQL) or Prisma migration steps in README for Replit.
+
+MYSQL NOTES
+- MySQL doesn’t have sequences like Postgres. For invoice numbering `INV-{YYYY}{MM}-{sequence}`, implement a monthly sequence table:
+  - table `counters` (id, name, year, month, seq) or use a transactional row update to atomically increment per month.
+- Use appropriate decimal types for currency (e.g., `DECIMAL(14,2)`).
+
+API ENDPOINTS (examples)
+- POST /api/auth/signup
+- POST /api/auth/login  -> { accessToken, refreshToken }
+- POST /api/auth/refresh
+- GET /api/customers, POST /api/customers, PUT /api/customers/:id, DELETE /api/customers/:id
+- GET /api/products, POST /api/products, PUT /api/products/:id
+- GET /api/invoices, POST /api/invoices, GET /api/invoices/:id, PUT /api/invoices/:id, POST /api/invoices/:id/send, GET /api/invoices/:id/pdf
+- POST /api/payments
+- GET /api/reports/pnl?from=YYYY-MM-DD&to=YYYY-MM-DD
+- All protected endpoints require `Authorization: Bearer <token>`.
+
+BUSINESS LOGIC (detailed)
+- Invoice numbering: `INV-{YYYY}{MM}-{sequence}` where `sequence` resets each month. Use a `counters` table + transaction to increment atomically.
+- On invoice finalize/issue: reduce product `stockQty` by each invoice item `qty` unless `allowNegativeStock` enabled in settings.
+- Payments: store payments linked to invoice; invoice status becomes `paid` when sum(payments) >= invoice.total.
+- P&L calculations:
+  - Revenue = SUM(invoice.total) for invoices with status `issued` or `paid` within date range.
+  - COGS = SUM(product.cost * qty_sold) for invoice items in date range.
+  - Expenses = SUM(expense.amount) for date range.
+  - Gross profit = Revenue - COGS. Net profit = Gross profit - Expenses.
+
+SEED & SAMPLE DATA
+- Provide a Prisma seed script (`prisma/seed.ts`) or SQL seed that creates:
+  - admin user: `admin@example.com` / `Test@1234`
+  - company record linked to admin
+  - 5 sample customers
+  - 8 sample products (sku, cost, price, stock)
+  - 6 invoices across several months (some paid, some unpaid)
+  - 3 expenses
+- Provide `npm run seed` script.
+
+FRONTEND BEHAVIOR
+- Client-side validation for forms.
+- Invoice builder: add/remove line items, auto-calc subtotal, taxes, totals.
+- PDF export: backend endpoint `GET /api/invoices/:id/pdf` renders invoice HTML and returns PDF using `puppeteer`.
+- Dashboard widgets: total sales (30d), receivables, expenses (30d), profit (30d), low-stock alerts.
+
+TESTS & QUALITY
+- Provide a handful of backend unit tests (Jest) for:
+  - invoice total calculation
+  - stock decrement logic (including negative-stock setting)
+  - P&L calculation
+- Provide example curl requests in README for key flows (signup/login/create invoice/get P&L).
+
+SECURITY & ENV
+- Hash passwords using `bcrypt`.
+- JWT signing with `JWT_SECRET` and `JWT_REFRESH_SECRET` from env.
+- Do not commit real secrets; include `.env.example`.
+- Basic server-side input validation (e.g., `express-validator`).
+- Rate-limit auth endpoints (basic).
+
+REPLIT & DEPLOYMENT
+- Include `replit.nix` or a `run` script for Replit that starts both backend and frontend concurrently (or a single process proxying to the frontend).
+- README: step-by-step Replit setup:
+  1. Add `DATABASE_URL` to Replit Secrets.
+  2. Run `npx prisma migrate deploy` (or `prisma migrate dev` for development).
+  3. Run `npm run seed`.
+  4. Start with `npm run dev`.
+- Provide `npx prisma migrate deploy && npm run seed && npm run start` as the production init command in README.
+- Include a minimal Dockerfile (optional).
+
+DELIVERABLES & ACCEPTANCE CRITERIA
+- Working login flow and dashboard UI.
+- Ability to create customers, products, invoices, expenses.
+- Invoice PDF download endpoint works.
+- P&L report returns correct values for seeded data (include small test that asserts expected numbers).
+- Repo includes README covering setup, env vars, migrations, seed, API docs, and example curl calls.
+- Provide a short “tradeoffs & next steps” section in README listing features left for production parity.
+
+EXTRAS (nice-to-have)
+- CSV import for products/customers.
+- Email invoice (mocked; log email payload rather than sending).
+- CSV export for invoices.
+- Small charts on dashboard (simple library or placeholder).
+
+OUTPUT IN REPO
+- `frontend/` (React Vite app)
+- `backend/` (Express TypeScript)
+- `prisma/` (schema.prisma configured for MySQL + migrations)
+- `docker/` (optional Dockerfile)
+- `README.md` with complete setup & Replit instructions
+- `prisma/seed.ts` or `seed.sql` and `npm run seed`
+- `tests/` with Jest unit tests
+- `.env.example`
+
+NOTES FOR DEVELOPER
+- Use Prisma’s Decimal type properly (e.g., `Decimal` in TS or `decimal.js` if needed).
+- Ensure invoice number generation is atomic (use DB transaction).
+- Keep UI simple and clean—structure similar to mybillbook (left nav, topbar, responsive).
+- Document any trade-offs in README.
+
+Timebox: implement MVP features above. If any tradeoffs are made due to time or environment (e.g., no email sending in MVP), list them explicitly in README.
+
+END
