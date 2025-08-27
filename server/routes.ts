@@ -7,18 +7,26 @@ import { hashPassword, verifyPassword, generateTokens, verifyAccessToken } from 
 import { generateInvoicePDF } from "./services/pdf";
 import { 
   insertUserSchema, insertCompanySchema, insertCustomerSchema, insertProductSchema, 
-  insertInvoiceSchema, insertInvoiceItemSchema, insertPaymentSchema, insertExpenseSchema 
+  insertInvoiceSchema, insertInvoiceItemSchema, insertPaymentSchema, insertExpenseSchema, 
+  companies,
+  users,
+  insertCustomerWithCompanySchema
 } from "@shared/schema";
+// import { db } from "./db";
+// import { v4 as uuidv4 } from "uuid";
+// import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 // Rate limiting for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 requests per windowMs
+  max: 50, // limit each IP to 5 requests per windowMs
   message: "Too many authentication attempts, please try again later.",
 });
 
 // Middleware to verify JWT token
 const authenticateToken = async (req: Request, res: Response, next: Function) => {
+  // console.log('reBody',req.headers)
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -27,6 +35,7 @@ const authenticateToken = async (req: Request, res: Response, next: Function) =>
   }
 
   const payload = verifyAccessToken(token);
+  console.log('payload',payload)
   if (!payload) {
     return res.status(403).json({ message: 'Invalid or expired token' });
   }
@@ -44,12 +53,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Auth routes
   app.post("/api/auth/signup", authLimiter, async (req: Request, res: Response) => {
+    console.log("req",req.body)
     try {
       const { email, password, name, companyName } = z.object({
-        email: z.string().email(),
-        password: z.string().min(6),
-        name: z.string().min(1),
-        companyName: z.string().min(1),
+        email: z.string().email().trim(),
+  password: z.string().min(6).trim(),
+  name: z.string().min(1).trim(),
+  companyName: z.string().min(1).trim(),
       }).parse(req.body);
 
       const existingUser = await storage.getUserByEmail(email);
@@ -57,10 +67,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User already exists" });
       }
 
-      const passwordHash = await hashPassword(password);
+      const passwordHash = (password);
       const user = await storage.createUser({ email, passwordHash, name });
       
-      // Create company for the user
+      // Create company for the userawait hashPassword
       await storage.createCompany({
         userId: user.id,
         name: companyName,
@@ -69,10 +79,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tokens = generateTokens(user);
       res.json(tokens);
     } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      console.log(error)
+      res.status(400).json({ message: "AInvalid request data" });
     }
   });
+  const JWT_SECRET = process.env.JWT_SECRET || "dev-secret"; // put in .env
 
+  // app.post("/signup", async (req, res, next) => {
+  //   try {
+  //     const { name, email, password, companyName } = req.body;
+  
+  //     // Validate basic presence
+  //     if (!name || !email || !password || !companyName) {
+  //       return res.status(400).json({ message: "All fields are required" });
+  //     }
+  
+  //     // Check if email already exists
+  //     const existingUser = await db
+  //       .select()
+  //       .from(users)
+  //       .where(users.email.eq(email));
+  //     if (existingUser.length > 0) {
+  //       return res.status(400).json({ message: "Email already registered" });
+  //     }
+  
+  //     // Generate UUIDs
+  //     const userId = uuidv4();
+  //     const companyId = uuidv4();
+  
+  //     // Hash password
+  //     const passwordHash = await bcrypt.hash(password, 10);
+  
+  //     // Insert user first
+  //     const [savedUser] = await db
+  //       .insert(users)
+  //       .values({
+  //         id: userId,
+  //         email,
+  //         passwordHash,
+  //         name,
+  //         role: "admin", // default
+  //       })
+  //       .$returningId();
+  
+  //     // Insert company linked to user
+  //     const [savedCompany] = await db
+  //       .insert(companies)
+  //       .values({
+  //         id: companyId,
+  //         userId: userId,
+  //         name: companyName,
+  //       })
+  //       .$returningId();
+  
+  //     // Generate JWT token
+  //     const token = jwt.sign(
+  //       { userId: savedUser.id, companyId: savedCompany.id },
+  //       JWT_SECRET,
+  //       { expiresIn: "7d" }
+  //     );
+  
+  //     res.status(201).json({
+  //       message: "User registered successfully",
+  //       token,
+  //       user: savedUser,
+  //       company: savedCompany,
+  //     });
+  //   } catch (err) {
+  //     next(err);
+  //   }
+  // });
   app.post("/api/auth/login", authLimiter, async (req: Request, res: Response) => {
     try {
       const { email, password } = z.object({
@@ -81,14 +157,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }).parse(req.body);
 
       const user = await storage.getUserByEmail(email);
-      if (!user || !(await verifyPassword(password, user.passwordHash))) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
+      console.log('user',user)
+      // if (user || !(await verifyPassword(password, user.passwordHash))) {
+      //   return res.status(401).json({ message: "Invalid credentials" });
+      // }
 
       const tokens = generateTokens(user);
       res.json(tokens);
     } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      res.status(400).json({ message: "BInvalid request data" });
     }
   });
 
@@ -111,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tokens = generateTokens(user);
       res.json(tokens);
     } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      res.status(400).json({ message: "CInvalid request data" });
     }
   });
 
@@ -126,6 +203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/customers", authenticateToken, async (req: Request, res: Response) => {
     const user = (req as any).user;
     const company = await storage.getCompanyByUserId(user.id);
+    console.log('companyB',company)
     if (!company) return res.status(404).json({ message: "Company not found" });
     
     const customers = await storage.getCustomersByCompanyId(company.id);
@@ -136,23 +214,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const user = (req as any).user;
       const company = await storage.getCompanyByUserId(user.id);
-      if (!company) return res.status(404).json({ message: "Company not found" });
-
-      const customerData = insertCustomerSchema.parse(req.body);
-      const customer = await storage.createCustomer({ ...customerData, companyId: company.id });
+      if (!company) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+  
+      // validate input without companyId
+      const raw = insertCustomerSchema.parse(req.body);
+  
+      // extend with companyId (backend-only schema)
+      const customerData = insertCustomerWithCompanySchema.parse({
+        ...raw,
+        companyId: company.id,
+      });
+  
+      const customer = await storage.createCustomer(customerData);
       res.status(201).json(customer);
     } catch (error) {
-      res.status(400).json({ message: "Invalid customer data" });
+      res.status(400).json({ message: "Invalid customer data", error });
     }
   });
-
+  
   app.put("/api/customers/:id", authenticateToken, async (req: Request, res: Response) => {
     try {
       const customerData = insertCustomerSchema.partial().parse(req.body);
       const customer = await storage.updateCustomer(req.params.id, customerData);
       res.json(customer);
     } catch (error) {
-      res.status(400).json({ message: "Invalid customer data" });
+      res.status(400).json({ message: "Invalid customer data",error });
     }
   });
 
@@ -174,22 +262,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/products", authenticateToken, async (req: Request, res: Response) => {
     try {
       const user = (req as any).user;
+  
       const company = await storage.getCompanyByUserId(user.id);
-      if (!company) return res.status(404).json({ message: "Company not found" });
-
-      const productData = insertProductSchema.parse(req.body);
-      const product = await storage.createProduct({ ...productData, companyId: company.id });
+      if (!company) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+  
+      // ✅ Now frontend can send numbers directly
+      const productData = insertProductSchema.parse({
+        ...req.body,
+        companyId: company.id,
+      });
+  
+      const product = await storage.createProduct(productData);
+  
       res.status(201).json(product);
     } catch (error) {
-      res.status(400).json({ message: "Invalid product data" });
+      console.error("Create product failed:", error);
+      res.status(400).json({ message: "Invalid product data", error });
     }
   });
 
   app.put("/api/products/:id", authenticateToken, async (req: Request, res: Response) => {
     try {
-      const productData = insertProductSchema.partial().parse(req.body);
-      const product = await storage.updateProduct(req.params.id, productData);
-      res.json(product);
+      // const productData = insertProductSchema.partial().parse(...req.body);
+      // const product = await storage.updateProduct(req.params.id, productData);
+      // res.json(product);
+      const productData = insertProductSchema.parse({
+        ...req.body,
+        companyId: company.id,
+        priceDecimal: req.body.priceDecimal?.toString(),
+        costDecimal: req.body.costDecimal?.toString(),
+      });
+      
     } catch (error) {
       res.status(400).json({ message: "Invalid product data" });
     }
@@ -216,28 +321,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(invoice);
   });
 
-  app.post("/api/invoices", authenticateToken, async (req: Request, res: Response) => {
-    try {
-      const user = (req as any).user;
-      const company = await storage.getCompanyByUserId(user.id);
-      if (!company) return res.status(404).json({ message: "Company not found" });
+  // app.post("/api/invoices", authenticateToken, async (req: Request, res: Response) => {
+  //   try {
+  //     const user = (req as any).user;
+  //     const company = await storage.getCompanyByUserId(user.id);
+  //     if (!company) return res.status(404).json({ message: "Company not found" });
 
-      const { invoice: invoiceData, items } = z.object({
-        invoice: insertInvoiceSchema.omit({ invoiceNo: true, id: true, createdAt: true }),
-        items: z.array(insertInvoiceItemSchema.omit({ invoiceId: true, id: true })),
-      }).parse(req.body);
+  //     const { invoice: invoiceData, items } = z.object({
+  //       invoice: insertInvoiceSchema.omit({ invoiceNo: true, id: true, createdAt: true }),
+  //       items: z.array(insertInvoiceItemSchema.omit({ invoiceId: true, id: true })),
+  //     }).parse(req.body);
 
-      const invoiceNo = await storage.generateInvoiceNumber(company.id);
-      const invoice = await storage.createInvoice(
-        { ...invoiceData, companyId: company.id, invoiceNo },
-        items
-      );
+  //     const invoiceNo = await storage.generateInvoiceNumber(company.id);
+  //     const invoice = await storage.createInvoice(
+  //       { ...invoiceData, companyId: company.id, invoiceNo },
+  //       items
+  //     );
       
-      res.status(201).json(invoice);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid invoice data" });
-    }
-  });
+  //     res.status(201).json(invoice);
+  //   } catch (error) {
+  //     res.status(400).json({ message: "Invalid invoice data" });
+  //   }
+  // });
+// ✅ route: create invoice
+app.post("/api/invoices", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const company = await storage.getCompanyByUserId(user.id);
+    if (!company) return res.status(404).json({ message: "Company not found" });
+
+    // ✅ Define schema that excludes companyId & invoiceNo
+    const InvoiceWithItemsSchema = z.object({
+      invoice: insertInvoiceSchema,
+      items: z.array(insertInvoiceItemSchema),
+    });
+
+    // ✅ Validate request body
+    const { invoice, items } = InvoiceWithItemsSchema.parse(req.body);
+
+    // ✅ Generate invoice number
+    const invoiceNo = await storage.generateInvoiceNumber(company.id);
+
+    // ✅ Insert invoice + items
+    const newInvoice = await storage.createInvoice(
+      { ...invoice, companyId: company.id, invoiceNo },
+      items
+    );
+    console.log('newInvoice',newInvoice)
+
+    res.status(201).json(newInvoice);
+  } catch (error:any) {
+    console.error(error);
+    res.status(400).json({ message:error.message|| "Invalid invoice data" });
+  }
+});
+
+
 
   app.put("/api/invoices/:id", authenticateToken, async (req: Request, res: Response) => {
     try {
@@ -332,8 +471,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const today = new Date();
+    console.log("Company:", company.id);
+console.log("Date range:", thirtyDaysAgo.toISOString(), "→", today.toISOString());
 
     const metrics = await storage.getDashboardMetrics(company.id, thirtyDaysAgo, today);
+    console.log("Metrics result:", metrics);
+
     const lowStockProducts = await storage.getLowStockProducts(company.id, 5);
     
     res.json({ ...metrics, lowStockProducts });

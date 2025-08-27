@@ -16,6 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tokens, setTokens] = useState<{ accessToken: string; refreshToken: string } | null>(null);
+  console.log("tokens",tokens)
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 

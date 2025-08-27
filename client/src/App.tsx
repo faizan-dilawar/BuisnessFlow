@@ -21,7 +21,11 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
-      <Route path="/">
+      {/* <Route path="/settings" component={Settings} />
+      <Route path="/invoices" component={Invoices} /> */}
+
+
+      <Route>
         <AppLayout>
           <Switch>
             <Route path="/" component={Dashboard} />

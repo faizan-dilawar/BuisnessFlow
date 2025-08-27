@@ -35,6 +35,7 @@ export default function Invoices() {
     queryKey: ["/api/invoices"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/invoices");
+      console.log('res')
       return res.json();
     },
   });
@@ -43,6 +44,8 @@ export default function Invoices() {
     queryKey: ["/api/customers"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/customers");
+      console.log("invoiceCustomer",res)
+
       return res.json();
     },
   });
@@ -185,17 +188,19 @@ export default function Invoices() {
                 </TableHeader>
                 <TableBody>
                   {filteredInvoices.map((invoice: any) => (
-                    <TableRow key={invoice.id}>
+                    <TableRow key={invoice.invoiceStatus}>
                       <TableCell className="font-medium">{invoice.invoiceNo}</TableCell>
                       <TableCell>{getCustomerName(invoice.customerId)}</TableCell>
                       <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
-                      <TableCell>{new Date(invoice.dueDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{invoice.dueDate 
+    ? new Date(invoice.dueDate).toLocaleDateString()
+    : "—"}</TableCell>
                       <TableCell className="font-medium">
                         {formatCurrency(Number(invoice.total))}
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          {invoice.status}
+                        <Badge className={getStatusColor(invoice.invoiceStatus)}>
+                          {invoice.invoiceStatus}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -211,14 +216,14 @@ export default function Invoices() {
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              onClick={() => handleDownloadPDF(invoice.id, invoice.invoiceNo)}
+                              onClick={() => handleDownloadPDF(invoice.invoiceStatus, invoice.invoiceNo)}
                             >
                               <Download className="mr-2 h-4 w-4" />
                               Download PDF
                             </DropdownMenuItem>
                             {invoice.status === "draft" && (
                               <DropdownMenuItem 
-                                onClick={() => handleStatusUpdate(invoice.id, "issued")}
+                                onClick={() => handleStatusUpdate(invoice.invoiceStatus, "issued")}
                               >
                                 <Send className="mr-2 h-4 w-4" />
                                 Issue Invoice
@@ -226,7 +231,7 @@ export default function Invoices() {
                             )}
                             {invoice.status === "issued" && (
                               <DropdownMenuItem 
-                                onClick={() => handleStatusUpdate(invoice.id, "paid")}
+                                onClick={() => handleStatusUpdate(invoice.invoiceStatus, "paid")}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 Mark as Paid

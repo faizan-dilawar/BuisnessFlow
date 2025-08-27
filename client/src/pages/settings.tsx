@@ -48,6 +48,7 @@ const timezones = [
 
 export default function Settings() {
   const { user, company } = useAuth();
+  console.log('companyID',company)
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

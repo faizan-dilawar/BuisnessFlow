@@ -47,6 +47,7 @@ export default function Customers() {
     queryKey: ["/api/customers"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/customers");
+      console.log("customers",res)
       return res.json();
     },
   });
@@ -64,6 +65,8 @@ export default function Customers() {
   const createMutation = useMutation({
     mutationFn: async (data: CustomerForm) => {
       const res = await apiRequest("POST", "/api/customers", data);
+      console.log("ccreateMutationustomers",res)
+
       return res.json();
     },
     onSuccess: () => {

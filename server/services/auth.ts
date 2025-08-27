@@ -18,7 +18,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return await bcrypt.compare(password, hash);
 }
 
-export function generateTokens(user: User): { accessToken: string; refreshToken: string } {
+export function generateTokens(user:any) {
   const payload: TokenPayload = {
     userId: user.id,
     email: user.email,

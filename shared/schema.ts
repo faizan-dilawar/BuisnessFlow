@@ -1,25 +1,37 @@
-import { relations } from "drizzle-orm";
-import { pgTable, varchar, text, decimal, integer, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+// import { text, decimal, varchar, timestamp, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import {
+  mysqlTable,
+  varchar,
+  text,
+  timestamp,
+  mysqlEnum,
+  boolean,
+  int,
+  decimal,
+  datetime
+} from "drizzle-orm/mysql-core";
+
 
 // Enums
-export const roleEnum = pgEnum("role", ["admin"]);
-export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "issued", "paid", "cancelled"]);
+export const roleEnum = mysqlEnum("role", ["admin"]);
+export const invoiceStatusEnum = mysqlEnum("invoice_status", ["draft", "issued", "paid", "cancelled"]);
 
 // Users table
-export const users = pgTable("users", {
+export const users = mysqlTable("users", {
   id: varchar("id", { length: 36 }).primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("passwordHash").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
-  role: roleEnum("role").default("admin"),
+   role: mysqlEnum("role", ["admin"]).default("admin"), // ✅
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Companies table
-export const companies = pgTable("companies", {
+export const companies = mysqlTable("companies", {
   id: varchar("id", { length: 36 }).primaryKey(),
   userId: varchar("user_id", { length: 36 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -31,8 +43,11 @@ export const companies = pgTable("companies", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+
+
+
 // Customers table
-export const customers = pgTable("customers", {
+export const customers = mysqlTable("customers", {
   id: varchar("id", { length: 36 }).primaryKey(),
   companyId: varchar("company_id", { length: 36 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -43,57 +58,64 @@ export const customers = pgTable("customers", {
 });
 
 // Products table
-export const products = pgTable("products", {
+export const products = mysqlTable("products", {
   id: varchar("id", { length: 36 }).primaryKey(),
   companyId: varchar("company_id", { length: 36 }).notNull(),
   sku: varchar("sku", { length: 100 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  priceDecimal: decimal("price_decimal", { precision: 14, scale: 2 }).notNull(),
-  costDecimal: decimal("cost_decimal", { precision: 14, scale: 2 }).notNull(),
-  stockQty: integer("stock_qty").default(0),
+  priceDecimal: decimal("price_decimal", { precision: 10, scale: 2 }).notNull(),
+  costDecimal: decimal("cost_decimal", { precision: 10, scale: 2 }).notNull(),
+
+  stockQty: int("stock_qty").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Counters for invoice numbering
-export const counters = pgTable("counters", {
+export const counters = mysqlTable("counters", {
   id: varchar("id", { length: 36 }).primaryKey(),
   name: varchar("name", { length: 50 }).notNull(),
-  year: integer("year").notNull(),
-  month: integer("month").notNull(),
-  sequence: integer("sequence").default(0),
+  year: int("year").notNull(),
+  month: varchar("month", { length: 20 }).notNull(),
+  sequence: int("sequence").default(0),
 });
 
 // Invoices table
-export const invoices = pgTable("invoices", {
+export const invoices = mysqlTable("invoices", {
   id: varchar("id", { length: 36 }).primaryKey(),
   companyId: varchar("company_id", { length: 36 }).notNull(),
   customerId: varchar("customer_id", { length: 36 }).notNull(),
   invoiceNo: varchar("invoice_no", { length: 50 }).notNull(),
-  date: timestamp("date").notNull(),
-  dueDate: timestamp("due_date").notNull(),
-  status: invoiceStatusEnum("status").default("draft"),
+
+  // ✅ Use DATETIME for business dates
+  date: datetime("date").notNull(),
+  // dueDate: datetime("due_date").notNull(),
+
+  invoiceStatus: mysqlEnum("invoice_status", ["draft","issued","paid","cancelled"]).default("draft"),
   subTotal: decimal("sub_total", { precision: 14, scale: 2 }).notNull(),
   taxTotal: decimal("tax_total", { precision: 14, scale: 2 }).notNull(),
   total: decimal("total", { precision: 14, scale: 2 }).notNull(),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
+
+  // ✅ MySQL-safe default (don’t use .defaultNow())
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
+
 // Invoice Items table
-export const invoiceItems = pgTable("invoice_items", {
+export const invoiceItems = mysqlTable("invoice_items", {
   id: varchar("id", { length: 36 }).primaryKey(),
   invoiceId: varchar("invoice_id", { length: 36 }).notNull(),
   productId: varchar("product_id", { length: 36 }).notNull(),
   description: varchar("description", { length: 255 }).notNull(),
-  qty: integer("qty").notNull(),
+  qty: int("qty").notNull(),
   unitPrice: decimal("unit_price", { precision: 14, scale: 2 }).notNull(),
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("0.00"),
   lineTotal: decimal("line_total", { precision: 14, scale: 2 }).notNull(),
 });
 
 // Payments table
-export const payments = pgTable("payments", {
+export const payments = mysqlTable("payments", {
   id: varchar("id", { length: 36 }).primaryKey(),
   invoiceId: varchar("invoice_id", { length: 36 }).notNull(),
   amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
@@ -103,7 +125,7 @@ export const payments = pgTable("payments", {
 });
 
 // Expenses table
-export const expenses = pgTable("expenses", {
+export const expenses = mysqlTable("expenses", {
   id: varchar("id", { length: 36 }).primaryKey(),
   companyId: varchar("company_id", { length: 36 }).notNull(),
   vendor: varchar("vendor", { length: 255 }).notNull(),
@@ -188,12 +210,53 @@ export const expenseRelations = relations(expenses, ({ one }) => ({
 }));
 
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertCompanySchema = createInsertSchema(companies).omit({ id: true, createdAt: true });
-export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
-export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
-export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
-export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({ id: true });
+// export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
+// export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
+export const insertCustomerSchema = createInsertSchema(customers).omit({
+  id: true,
+  companyId: true, // 👈 omit because you’ll inject it in backend
+  createdAt: true,
+});
+export const insertCustomerWithCompanySchema = insertCustomerSchema.extend({
+  companyId: z.string(),
+});
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  priceDecimal: z.number().min(0, "Price is required"),
+  costDecimal: z.number().min(0, "Cost is required"),
+  stockQty: z.number().int().min(0).optional(),
+});
+// export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
+// export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({ id: true });
+// Invoice schema
+export const insertInvoiceSchema = createInsertSchema(invoices)
+  .omit({
+    id: true,
+    createdAt: true,
+    companyId: true,  // <-- omit because backend sets it
+    invoiceNo: true,  // <-- omit because backend generates it
+  })
+  .extend({
+    date: z.coerce.date(),         // accepts string -> Date
+    subTotal: z.coerce.number(),   // accepts string or number -> number
+    taxTotal: z.coerce.number(),
+    total: z.coerce.number(),
+  });
+
+// Invoice item schema
+export const insertInvoiceItemSchema = createInsertSchema(invoiceItems, {
+  unitPrice: z.union([z.string(), z.number()]).transform(String),
+  taxRate: z.union([z.string(), z.number()]).transform(String),
+  lineTotal: z.union([z.string(), z.number()]).transform(String),
+}).omit({
+  id: true,
+  invoiceId: true,
+});
+
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true });
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
 

@@ -42,18 +42,24 @@ export default function Sidebar() {
       {/* Navigation Menu */}
       <nav className="flex-1 py-6 px-4 space-y-2">
         {navItems.map((item) => {
+          debugger
           const Icon = item.icon;
-          const isActive = location === item.href || (item.href === "/" && location === "/dashboard");
-          
+          const isActive =
+            location === item.href 
+            
+            ||  (item.href === "/" && location === "/dashboard");
+
           return (
-            <Link key={item.href} href={item.href}>
-              <a className={cn(
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
                 "flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group",
                 isActive && "bg-primary-50 text-primary-600"
-              )}>
-                <Icon className="w-5 h-5 mr-3" />
-                <span className="font-medium">{item.label}</span>
-              </a>
+              )}
+            >
+              <Icon className="w-5 h-5 mr-3" />
+              <span className="font-medium">{item.label}</span>
             </Link>
           );
         })}
@@ -66,8 +72,8 @@ export default function Sidebar() {
             <User className="text-slate-600 w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800 truncate">{user?.name}</p>
-            <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+            <p className="text-sm font-medium text-slate-800 truncate">{user?.name|| "Guest"}</p>
+            <p className="text-xs text-slate-500 truncate">{user?.email|| "No email"}</p>
           </div>
           <button 
             onClick={logout}

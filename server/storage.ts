@@ -1,15 +1,17 @@
 import { randomUUID } from "crypto";
-import { eq, and, desc, asc, sum, gte, lte, sql } from "drizzle-orm";
-import { db } from "./db";
+import { eq, and, desc, asc, sum, gte, lte, sql, inArray } from "drizzle-orm";
+import { getDb } from "./db";
 import { 
   users, companies, customers, products, invoices, invoiceItems, payments, expenses, counters,
   type User, type InsertUser, type Company, type InsertCompany, type Customer, type InsertCustomer,
   type Product, type InsertProduct, type Invoice, type InsertInvoice, type InvoiceItem, type InsertInvoiceItem,
   type Payment, type InsertPayment, type Expense, type InsertExpense
 } from "@shared/schema";
+export const db = await getDb();
 
 export interface IStorage {
   // User operations
+  
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -52,12 +54,12 @@ export interface IStorage {
   deleteExpense(id: string): Promise<void>;
   
   // Analytics
-  getDashboardMetrics(companyId: string, fromDate: Date, toDate: Date): Promise<{
-    revenue: number;
-    outstanding: number;
-    expenses: number;
-    profit: number;
-  }>;
+  // getDashboardMetrics(companyId: string, fromDate: Date, toDate: Date): Promise<{
+  //   revenue: number;
+  //   outstanding: number;
+  //   expenses: number;
+  //   profit: number;
+  // }>;
   getProfitLoss(companyId: string, fromDate: Date, toDate: Date): Promise<{
     revenue: number;
     cogs: number;
@@ -81,11 +83,22 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
-    const [user] = await db
-      .insert(users)
-      .values({ ...insertUser, id })
-      .returning();
-    return user;
+    await db.insert(users).values({ ...insertUser, id,
+      role: "admin", // default role
+
+
+    });
+
+    // const [user] = await db
+    // .select()
+    // .from(users)
+    // .where(eq(users.id, id));
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+
+    console.log("Inserted ID:", id);
+console.log("Fetched user:", user);
+  
+  return user;
   }
 
   async getCompanyByUserId(userId: string): Promise<Company | undefined> {
@@ -95,10 +108,18 @@ export class DatabaseStorage implements IStorage {
 
   async createCompany(insertCompany: InsertCompany): Promise<Company> {
     const id = randomUUID();
-    const [company] = await db
-      .insert(companies)
-      .values({ ...insertCompany, id })
-      .returning();
+
+  // Insert the company
+  await db.insert(companies).values({
+    ...insertCompany,
+    id,
+  });
+
+  // Fetch the newly created company
+  const [company] = await db
+    .select()
+    .from(companies)
+    .where(eq(companies.id, id));
     return company;
   }
 
@@ -120,15 +141,22 @@ export class DatabaseStorage implements IStorage {
     return customer || undefined;
   }
 
-  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
+   async  createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     const id = randomUUID();
+    console.log("insertCustomer",insertCustomer)
+  
+    await db.insert(customers).values({
+      ...insertCustomer,
+      id,
+    });
+  
     const [customer] = await db
-      .insert(customers)
-      .values({ ...insertCustomer, id })
-      .returning();
+      .select()
+      .from(customers)
+      .where(eq(customers.id, id));
+  
     return customer;
   }
-
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer> {
     const [updated] = await db
       .update(customers)
@@ -153,10 +181,17 @@ export class DatabaseStorage implements IStorage {
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const id = randomUUID();
-    const [product] = await db
-      .insert(products)
-      .values({ ...insertProduct, id })
-      .returning();
+
+  await db.insert(products).values({
+    ...insertProduct,
+    id,
+  });
+
+  // 👇 use eq() helper here
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(eq(products.id, id));
     return product;
   }
 
@@ -192,32 +227,88 @@ export class DatabaseStorage implements IStorage {
     return { ...invoice, items, customer };
   }
 
-  async createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<Invoice> {
-    const id = randomUUID();
+  // async createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<Invoice> {
+  //   const id = randomUUID();
     
-    // Start transaction
-    const [newInvoice] = await db
-      .insert(invoices)
-      .values({ ...invoice, id })
-      .returning();
+  //   // Start transaction
+  //   const [newInvoice] = await db
+  //     .insert(invoices)
+  //     .values({ ...invoice, id })
+  //     .returning();
 
-    // Insert invoice items
-    for (const item of items) {
-      await db.insert(invoiceItems).values({ ...item, id: randomUUID(), invoiceId: id });
-    }
+  //   // Insert invoice items
+  //   for (const item of items) {
+  //     await db.insert(invoiceItems).values({ ...item, id: randomUUID(), invoiceId: id });
+  //   }
 
-    // Update stock quantities if invoice is issued
-    if (invoice.status === "issued") {
+  //   // Update stock quantities if invoice is issued
+  //   if (invoice.status === "issued") {
+  //     for (const item of items) {
+  //       await db
+  //         .update(products)
+  //         .set({ stockQty: sql`stock_qty - ${item.qty}` })
+  //         .where(eq(products.id, item.productId));
+  //     }
+  //   }
+
+  //   return newInvoice;
+  // }
+  // storage.ts
+
+  async createInvoice(invoiceData: any, items: any[]) {
+    return await db.transaction(async (tx) => {
+      // 1️⃣ Create invoice
+      const invoiceId = randomUUID();
+      await tx.insert(invoices).values({
+        id: invoiceId,
+        ...invoiceData,
+      });
+  
+      // 2️⃣ Insert items + update product stock
       for (const item of items) {
-        await db
-          .update(products)
-          .set({ stockQty: sql`stock_qty - ${item.qty}` })
+        // fetch product
+        const [product] = await tx
+          .select()
+          .from(products)
           .where(eq(products.id, item.productId));
+  
+        if (!product) {
+          throw new Error(`Product not found: ${item.productId}`);
+        }
+  
+        if (product.stockQty < item.qty) {
+          throw new Error(`Not enough stock for ${product.name}`);
+        }
+  
+        // deduct stock
+        await tx
+          .update(products)
+          .set({ stockQty: product.stockQty - item.qty })
+          .where(eq(products.id, item.productId));
+  
+        // insert invoice item
+        await tx.insert(invoiceItems).values({
+          id: randomUUID(),
+          invoiceId,
+          ...item,
+        });
       }
-    }
-
-    return newInvoice;
+  
+      // 3️⃣ Return invoice with items
+      const [createdInvoice] = await tx
+        .select()
+        .from(invoices)
+        .where(eq(invoices.id, invoiceId));
+  
+      const createdItems = await tx
+        .select()
+        .from(invoiceItems)
+        .where(eq(invoiceItems.invoiceId, invoiceId));
+  
+      return { ...createdInvoice, items: createdItems };
+    });
   }
+
 
   async updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice> {
     const [updated] = await db
@@ -305,10 +396,12 @@ export class DatabaseStorage implements IStorage {
 
   async createExpense(insertExpense: InsertExpense): Promise<Expense> {
     const id = randomUUID();
-    const [expense] = await db
-      .insert(expenses)
-      .values({ ...insertExpense, id })
-      .returning();
+    // const [expense] = await db
+    //   .insert(expenses)
+    //   .values({ ...insertExpense, id })
+    //   .returning();
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+
     return expense;
   }
 
@@ -325,49 +418,106 @@ export class DatabaseStorage implements IStorage {
     await db.delete(expenses).where(eq(expenses.id, id));
   }
 
-  async getDashboardMetrics(companyId: string, fromDate: Date, toDate: Date): Promise<{
+  // async getDashboardMetrics(companyId: string, fromDate: Date, toDate: Date): Promise<{
+  //   revenue: number;
+  //   outstanding: number;
+  //   expenses: number;
+  //   profit: number;
+  // }> {
+  //   // Revenue from paid invoices
+  //   const revenueResult = await db
+  //     .select({ total: sum(invoices.total) })
+  //     .from(invoices)
+  //     .where(and(
+  //       eq(invoices.companyId, companyId),
+  //       eq(invoices.invoiceStatus, "paid"),
+  //       gte(invoices.date, fromDate),
+  //       lte(invoices.date, toDate)
+  //     ));
+
+  //   // Outstanding amount from issued invoices
+  //   const outstandingResult = await db
+  //     .select({ total: sum(invoices.total) })
+  //     .from(invoices)
+  //     .where(and(
+  //       eq(invoices.companyId, companyId),
+  //       eq(invoices.invoiceStatus, "issued")
+  //     ));
+
+  //   // Total expenses
+  //   const expensesResult = await db
+  //     .select({ total: sum(expenses.amount) })
+  //     .from(expenses)
+  //     .where(and(
+  //       eq(expenses.companyId, companyId),
+  //       gte(expenses.date, fromDate),
+  //       lte(expenses.date, toDate)
+  //     ));
+
+  //   const revenue = Number(revenueResult[0]?.total || 0);
+  //   const outstanding = Number(outstandingResult[0]?.total || 0);
+  //   const expensesTotal = Number(expensesResult[0]?.total || 0);
+  //   const profit = revenue - expensesTotal;
+
+  //   return { revenue, outstanding, expenses: expensesTotal, profit };
+  // }
+  async getDashboardMetrics(
+    companyId: string,
+    fromDate: Date,
+    toDate: Date
+  ): Promise<{
     revenue: number;
     outstanding: number;
     expenses: number;
     profit: number;
   }> {
-    // Revenue from paid invoices
+    // Revenue (paid invoices)
     const revenueResult = await db
       .select({ total: sum(invoices.total) })
       .from(invoices)
-      .where(and(
-        eq(invoices.companyId, companyId),
-        eq(invoices.status, "paid"),
-        gte(invoices.date, fromDate),
-        lte(invoices.date, toDate)
-      ));
-
-    // Outstanding amount from issued invoices
+      .where(
+        and(
+          eq(invoices.companyId, companyId),
+          eq(invoices.invoiceStatus, "paid"),
+          gte(invoices.date, fromDate),
+          lte(invoices.date, toDate)
+        )
+      );
+  
+    // Outstanding (issued + draft invoices)
     const outstandingResult = await db
       .select({ total: sum(invoices.total) })
       .from(invoices)
-      .where(and(
-        eq(invoices.companyId, companyId),
-        eq(invoices.status, "issued")
-      ));
-
-    // Total expenses
+      .where(
+        and(
+          eq(invoices.companyId, companyId),
+          inArray(invoices.invoiceStatus, ["issued", "draft"]),
+          gte(invoices.date, fromDate),
+          lte(invoices.date, toDate)
+        )
+      );
+  
+    // Expenses
     const expensesResult = await db
       .select({ total: sum(expenses.amount) })
       .from(expenses)
-      .where(and(
-        eq(expenses.companyId, companyId),
-        gte(expenses.date, fromDate),
-        lte(expenses.date, toDate)
-      ));
-
-    const revenue = Number(revenueResult[0]?.total || 0);
-    const outstanding = Number(outstandingResult[0]?.total || 0);
-    const expensesTotal = Number(expensesResult[0]?.total || 0);
+      .where(
+        and(
+          eq(expenses.companyId, companyId),
+          gte(expenses.date, fromDate),
+          lte(expenses.date, toDate)
+        )
+      );
+  
+    // Normalize
+    const revenue = Number(revenueResult[0]?.total ?? 0);
+    const outstanding = Number(outstandingResult[0]?.total ?? 0);
+    const expensesTotal = Number(expensesResult[0]?.total ?? 0);
     const profit = revenue - expensesTotal;
-
+  
     return { revenue, outstanding, expenses: expensesTotal, profit };
   }
+  
 
   async getProfitLoss(companyId: string, fromDate: Date, toDate: Date): Promise<{
     revenue: number;
@@ -382,7 +532,7 @@ export class DatabaseStorage implements IStorage {
       .from(invoices)
       .where(and(
         eq(invoices.companyId, companyId),
-        eq(invoices.status, "paid"),
+        eq(invoices.invoiceStatus, "paid"),
         gte(invoices.date, fromDate),
         lte(invoices.date, toDate)
       ));
@@ -397,7 +547,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(products, eq(invoiceItems.productId, products.id))
       .where(and(
         eq(invoices.companyId, companyId),
-        eq(invoices.status, "paid"),
+        eq(invoices.invoiceStatus, "paid"),
         gte(invoices.date, fromDate),
         lte(invoices.date, toDate)
       ));

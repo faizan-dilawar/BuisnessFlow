@@ -29,9 +29,12 @@ export default function Dashboard() {
     queryKey: ["/api/analytics/dashboard"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/analytics/dashboard");
+      console.log("DAshboard",res)
       return res.json();
     },
   });
+  
+  console.log("analytics",analytics)
 
   const { data: recentInvoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["/api/invoices"],

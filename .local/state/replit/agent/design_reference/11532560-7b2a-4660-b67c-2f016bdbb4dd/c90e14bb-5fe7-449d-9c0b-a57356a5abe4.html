@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InvoiceFlow - Business Accounting & Invoicing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: {
+                    'sans': ['Inter', 'system-ui', 'sans-serif'],
+                },
+                colors: {
+                    primary: {
+                        50: '#eff6ff',
+                        500: '#3b82f6',
+                        600: '#2563eb',
+                        700: '#1d4ed8',
+                    }
+                }
+            }
+        }
+    };
+    </script>
+</head>
+<body class="bg-slate-50 font-sans">
+
+<!-- @COMPONENT: AppLayout [Main application layout with sidebar and header] -->
+<div class="flex h-screen bg-slate-50">
+    
+    <!-- @COMPONENT: Sidebar [Navigation sidebar] -->
+    <aside class="w-64 bg-white shadow-lg border-r border-slate-200 flex flex-col">
+        <!-- Logo Section -->
+        <div class="p-6 border-b border-slate-200">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-invoice text-white text-sm"></i>
+                </div>
+                <span class="text-xl font-semibold text-slate-800">InvoiceFlow</span>
+            </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="flex-1 py-6 px-4 space-y-2">
+            <a href="#" class="flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group">
+                <i class="fas fa-chart-line w-5 h-5 mr-3"></i>
+                <span class="font-medium">Dashboard</span>
+            </a>
+            
+            <a href="#" class="flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group">
+                <i class="fas fa-file-invoice w-5 h-5 mr-3"></i>
+                <span class="font-medium">Invoices</span>
+                <span class="ml-auto bg-slate-200 text-slate-600 px-2 py-1 text-xs rounded-full" data-bind="invoiceCount">12</span>
+            </a>
+
+            <a href="#" class="flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group">
+                <i class="fas fa-users w-5 h-5 mr-3"></i>
+                <span class="font-medium">Customers</span>
+            </a>
+
+            <a href="#" class="flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group">
+                <i class="fas fa-box w-5 h-5 mr-3"></i>
+                <span class="font-medium">Products</span>
+            </a>
+
+            <a href="#" class="flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group">
+                <i class="fas fa-receipt w-5 h-5 mr-3"></i>
+                <span class="font-medium">Expenses</span>
+            </a>
+
+            <a href="#" class="flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group">
+                <i class="fas fa-chart-bar w-5 h-5 mr-3"></i>
+                <span class="font-medium">Reports</span>
+            </a>
+
+            <a href="#" class="flex items-center px-4 py-3 text-slate-600 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors group">
+                <i class="fas fa-cog w-5 h-5 mr-3"></i>
+                <span class="font-medium">Settings</span>
+            </a>
+        </nav>
+
+        <!-- User Profile Section -->
+        <div class="p-4 border-t border-slate-200">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-slate-300 rounded-full flex items-center justify-center">
+                    <i class="fas fa-user text-slate-600"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-slate-800" data-bind="user.name">John Doe</p>
+                    <p class="text-xs text-slate-500 truncate" data-bind="user.email">john@example.com</p>
+                </div>
+                <button class="text-slate-400 hover:text-slate-600" data-event="click:handleLogout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+    <!-- @END_COMPONENT: Sidebar -->
+
+    <!-- @COMPONENT: MainContent [Main content area with header and dashboard] -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- @COMPONENT: Header [Top header bar] -->
+        <header class="bg-white border-b border-slate-200 px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 max-w-md">
+                    <div class="relative">
+                        <input type="text" placeholder="Search invoices, customers..." 
+                               class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                               data-implementation="Global search functionality">
+                        <i class="fas fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Notifications -->
+                    <button class="relative p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100">
+                        <i class="fas fa-bell"></i>
+                        <span class="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                    </button>
+
+                    <!-- Quick Actions -->
+                    <div class="flex space-x-2">
+                        <button class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm"
+                                data-event="click:createInvoice">
+                            <i class="fas fa-plus mr-2"></i>
+                            New Invoice
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <!-- @END_COMPONENT: Header -->
+
+        <!-- @COMPONENT: Dashboard [Main dashboard content] -->
+        <main class="flex-1 overflow-y-auto bg-slate-50">
+            <div class="p-6">
+                <!-- Page Header -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-slate-800">Dashboard</h1>
+                    <p class="text-slate-600 mt-2">Welcome back! Here's what's happening with your business today.</p>
+                </div>
+
+                <!-- Key Metrics Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Total Revenue -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-slate-600 text-sm font-medium">Total Revenue (30d)</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-2" data-bind="metrics.revenue">$24,580</p>
+                                <div class="flex items-center mt-2">
+                                    <i class="fas fa-arrow-up text-emerald-500 text-xs mr-1"></i>
+                                    <span class="text-emerald-500 text-sm font-medium">12.5%</span>
+                                    <span class="text-slate-500 text-sm ml-1">vs last month</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-dollar-sign text-emerald-600 text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outstanding Invoices -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-slate-600 text-sm font-medium">Outstanding</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-2" data-bind="metrics.outstanding">$8,420</p>
+                                <div class="flex items-center mt-2">
+                                    <i class="fas fa-clock text-amber-500 text-xs mr-1"></i>
+                                    <span class="text-amber-500 text-sm font-medium">6 invoices</span>
+                                    <span class="text-slate-500 text-sm ml-1">pending</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file-invoice-dollar text-amber-600 text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Expenses -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-slate-600 text-sm font-medium">Expenses (30d)</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-2" data-bind="metrics.expenses">$3,240</p>
+                                <div class="flex items-center mt-2">
+                                    <i class="fas fa-arrow-down text-red-500 text-xs mr-1"></i>
+                                    <span class="text-red-500 text-sm font-medium">8.2%</span>
+                                    <span class="text-slate-500 text-sm ml-1">vs last month</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-receipt text-red-600 text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Net Profit -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-slate-600 text-sm font-medium">Net Profit (30d)</p>
+                                <p class="text-2xl font-bold text-slate-800 mt-2" data-bind="metrics.profit">$21,340</p>
+                                <div class="flex items-center mt-2">
+                                    <i class="fas fa-arrow-up text-emerald-500 text-xs mr-1"></i>
+                                    <span class="text-emerald-500 text-sm font-medium">15.8%</span>
+                                    <span class="text-slate-500 text-sm ml-1">vs last month</span>
+                                </div>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-chart-line text-blue-600 text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Recent Invoices -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                            <div class="px-6 py-4 border-b border-slate-200">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-slate-800">Recent Invoices</h3>
+                                    <a href="#" class="text-primary-600 hover:text-primary-700 text-sm font-medium">View All</a>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-4">
+                                    <!-- @MAP: recentInvoices.map(invoice => ( -->
+                                    <div class="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-file-invoice text-slate-600"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-slate-800" data-bind="invoice.number">INV-202412-001</p>
+                                                <p class="text-sm text-slate-600" data-bind="invoice.customerName">Acme Corp</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-medium text-slate-800" data-bind="invoice.amount">$1,250.00</p>
+                                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-800">
+                                                Paid
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-file-invoice text-slate-600"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-slate-800">INV-202412-002</p>
+                                                <p class="text-sm text-slate-600">Tech Solutions Ltd</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-medium text-slate-800">$850.00</p>
+                                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
+                                                Pending
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-file-invoice text-slate-600"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-slate-800">INV-202412-003</p>
+                                                <p class="text-sm text-slate-600">Digital Agency</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-medium text-slate-800">$2,100.00</p>
+                                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                                Draft
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between py-3">
+                                        <div class="flex items-center space-x-4">
+                                            <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-file-invoice text-slate-600"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-slate-800">INV-202412-004</p>
+                                                <p class="text-sm text-slate-600">StartUp Inc</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-medium text-slate-800">$675.50</p>
+                                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                                                Overdue
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <!-- @END_MAP )) -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Sidebar -->
+                    <div class="space-y-6">
+                        
+                        <!-- Low Stock Alert -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                            <div class="px-6 py-4 border-b border-slate-200">
+                                <h3 class="text-lg font-semibold text-slate-800">Low Stock Alerts</h3>
+                            </div>
+                            <div class="p-6">
+                                <div class="space-y-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="font-medium text-slate-800">Web Hosting Service</p>
+                                            <p class="text-sm text-slate-600">SKU: WH-001</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-red-600 font-medium">2 left</span>
+                                            <p class="text-xs text-slate-500">Min: 5</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="font-medium text-slate-800">SSL Certificate</p>
+                                            <p class="text-sm text-slate-600">SKU: SSL-PRO</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-amber-600 font-medium">4 left</span>
+                                            <p class="text-xs text-slate-500">Min: 10</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button class="w-full mt-4 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+                                    Restock Items
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                            <div class="px-6 py-4 border-b border-slate-200">
+                                <h3 class="text-lg font-semibold text-slate-800">Quick Actions</h3>
+                            </div>
+                            <div class="p-6 space-y-3">
+                                <button class="w-full flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                                        data-event="click:createInvoice">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-plus text-primary-600 mr-3"></i>
+                                        <span class="font-medium text-slate-700">Create Invoice</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-slate-400 group-hover:text-slate-600"></i>
+                                </button>
+                                
+                                <button class="w-full flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                                        data-event="click:addCustomer">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-user-plus text-primary-600 mr-3"></i>
+                                        <span class="font-medium text-slate-700">Add Customer</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-slate-400 group-hover:text-slate-600"></i>
+                                </button>
+                                
+                                <button class="w-full flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                                        data-event="click:addProduct">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-box text-primary-600 mr-3"></i>
+                                        <span class="font-medium text-slate-700">Add Product</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-slate-400 group-hover:text-slate-600"></i>
+                                </button>
+                                
+                                <button class="w-full flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                                        data-event="click:recordExpense">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-receipt text-primary-600 mr-3"></i>
+                                        <span class="font-medium text-slate-700">Record Expense</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-slate-400 group-hover:text-slate-600"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Revenue Chart Placeholder -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                            <div class="px-6 py-4 border-b border-slate-200">
+                                <h3 class="text-lg font-semibold text-slate-800">Revenue Trend</h3>
+                            </div>
+                            <div class="p-6">
+                                <!-- @FUNCTIONALITY: Revenue chart using Chart.js or similar library -->
+                                <div class="h-40 bg-slate-50 rounded-lg flex items-center justify-center">
+                                    <div class="text-center">
+                                        <i class="fas fa-chart-line text-slate-400 text-2xl mb-2"></i>
+                                        <p class="text-slate-500 text-sm">Chart will render here</p>
+                                        <p class="text-xs text-slate-400">Showing last 30 days</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Creation Modal Overlay (Hidden by default) -->
+                <!-- @COMPONENT: InvoiceModal [Modal for creating new invoices] -->
+                <div id="invoiceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+                    <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+                        <!-- Modal Header -->
+                        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                            <h2 class="text-xl font-semibold text-slate-800">Create New Invoice</h2>
+                            <button class="text-slate-400 hover:text-slate-600 text-xl" data-event="click:closeModal">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Modal Content -->
+                        <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+                            <form data-event="submit:handleCreateInvoice">
+                                <!-- Invoice Header Info -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Customer</label>
+                                        <select class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                            <option>Select Customer...</option>
+                                            <option data-mock="true">Acme Corp</option>
+                                            <option data-mock="true">Tech Solutions Ltd</option>
+                                            <option data-mock="true">Digital Agency</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Invoice Date</label>
+                                        <input type="date" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Invoice Number</label>
+                                        <input type="text" value="INV-202412-005" readonly 
+                                               class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-600">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Due Date</label>
+                                        <input type="date" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    </div>
+                                </div>
+
+                                <!-- Invoice Items -->
+                                <div class="mb-6">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <label class="block text-sm font-medium text-slate-700">Invoice Items</label>
+                                        <button type="button" class="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center"
+                                                data-event="click:addInvoiceItem">
+                                            <i class="fas fa-plus mr-2"></i>Add Item
+                                        </button>
+                                    </div>
+
+                                    <!-- Items Table -->
+                                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                                        <table class="w-full">
+                                            <thead class="bg-slate-50">
+                                                <tr>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Item</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Qty</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Rate</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Tax</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Amount</th>
+                                                    <th class="w-12"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-200">
+                                                <tr data-mock="true">
+                                                    <td class="px-4 py-3">
+                                                        <select class="w-full text-sm border-0 focus:ring-0">
+                                                            <option>Web Development Service</option>
+                                                        </select>
+                                                    </td>
+                                                    <td class="px-4 py-3">
+                                                        <input type="number" value="1" class="w-full text-sm border-0 focus:ring-0">
+                                                    </td>
+                                                    <td class="px-4 py-3">
+                                                        <input type="number" value="850.00" step="0.01" class="w-full text-sm border-0 focus:ring-0">
+                                                    </td>
+                                                    <td class="px-4 py-3">
+                                                        <select class="w-full text-sm border-0 focus:ring-0">
+                                                            <option>18% GST</option>
+                                                        </select>
+                                                    </td>
+                                                    <td class="px-4 py-3 text-sm font-medium">$1,003.00</td>
+                                                    <td class="px-4 py-3">
+                                                        <button type="button" class="text-red-500 hover:text-red-700">
+                                                            <i class="fas fa-trash text-xs"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- Invoice Totals -->
+                                <div class="flex justify-end">
+                                    <div class="w-80 space-y-2">
+                                        <div class="flex justify-between text-sm">
+                                            <span class="text-slate-600">Subtotal:</span>
+                                            <span class="font-medium">$850.00</span>
+                                        </div>
+                                        <div class="flex justify-between text-sm">
+                                            <span class="text-slate-600">Tax (18%):</span>
+                                            <span class="font-medium">$153.00</span>
+                                        </div>
+                                        <div class="border-t pt-2">
+                                            <div class="flex justify-between font-semibold">
+                                                <span>Total:</span>
+                                                <span class="text-lg">$1,003.00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Modal Actions -->
+                                <div class="flex justify-end space-x-3 mt-8 pt-6 border-t border-slate-200">
+                                    <button type="button" class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium">
+                                        Save as Draft
+                                    </button>
+                                    <button type="button" class="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium">
+                                        Create Invoice
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: InvoiceModal -->
+
+            </div>
+        </main>
+        <!-- @END_COMPONENT: Dashboard -->
+    </div>
+    <!-- @END_COMPONENT: MainContent -->
+</div>
+<!-- @END_COMPONENT: AppLayout -->
+
+<script>
+// Simple demo interactivity - no complex business logic
+(function() {
+    // Mock data for demonstration
+    const mockData = {
+        user: {
+            name: 'John Doe',
+            email: 'john@example.com'
+        },
+        metrics: {
+            revenue: '$24,580',
+            outstanding: '$8,420',
+            expenses: '$3,240',
+            profit: '$21,340'
+        }
+    };
+
+    // Simple navigation highlighting
+    const navLinks = document.querySelectorAll('aside nav a');
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            navLinks.forEach(l => l.classList.remove('bg-primary-50', 'text-primary-600'));
+            link.classList.add('bg-primary-50', 'text-primary-600');
+        });
+    });
+
+    // Set dashboard as active by default
+    if (navLinks[0]) {
+        navLinks[0].classList.add('bg-primary-50', 'text-primary-600');
+    }
+
+    // Modal controls
+    const newInvoiceButtons = document.querySelectorAll('[data-event*="createInvoice"]');
+    const modal = document.getElementById('invoiceModal');
+    const closeButton = document.querySelector('[data-event*="closeModal"]');
+
+    newInvoiceButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            modal?.classList.remove('hidden');
+        });
+    });
+
+    closeButton?.addEventListener('click', () => {
+        modal?.classList.add('hidden');
+    });
+
+    // Close modal on backdrop click
+    modal?.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    });
+
+    // TODO: Implement business logic for:
+    // - Real-time data updates
+    // - Form validations
+    // - API integrations
+    // - Chart rendering with Chart.js
+    // - Invoice calculations
+    // - Search functionality
+    // - Notification system
+})();
+</script>
+
+</body>
+</html>

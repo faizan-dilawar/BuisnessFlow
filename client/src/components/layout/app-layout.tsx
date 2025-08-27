@@ -9,14 +9,21 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  console.log('children',children)
+
   const { user, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
+  console.log('user',user)
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
     if (!isLoading && !user) {
       setLocation("/login");
     }
   }, [user, isLoading, setLocation]);
+  console.log('app-layout',user)
+
+
+  
 
   if (isLoading) {
     return (
@@ -27,6 +34,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }
 
   if (!user) {
+
     return null;
   }
 

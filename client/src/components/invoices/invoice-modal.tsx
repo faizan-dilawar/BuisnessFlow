@@ -39,7 +39,7 @@ const invoiceSchema = z.object({
   customerId: z.string().min(1, "Customer is required"),
   date: z.string().min(1, "Date is required"),
   dueDate: z.string().min(1, "Due date is required"),
-  status: z.enum(["draft", "issued"]),
+  status: z.enum(["draft", "issued","paid","cancelled"]),
   notes: z.string().optional(),
   items: z.array(invoiceItemSchema).min(1, "At least one item is required"),
 });
@@ -60,6 +60,7 @@ export default function InvoiceModal({ isOpen, onClose, editingInvoice }: Invoic
     queryKey: ["/api/customers"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/customers");
+      console.log("customers",res)
       return res.json();
     },
   });
@@ -104,7 +105,7 @@ export default function InvoiceModal({ isOpen, onClose, editingInvoice }: Invoic
           customerId: data.customerId,
           date: new Date(data.date),
           dueDate: new Date(data.dueDate),
-          status: data.status,
+          invoiceStatus: data.status,
           notes: data.notes,
           subTotal: calculateSubtotal(),
           taxTotal: calculateTaxTotal(),
@@ -119,6 +120,7 @@ export default function InvoiceModal({ isOpen, onClose, editingInvoice }: Invoic
           lineTotal: calculateLineTotal(item.qty, item.unitPrice, item.taxRate),
         })),
       };
+      console.log("pay;oad",payload)
       const res = await apiRequest("POST", "/api/invoices", payload);
       return res.json();
     },
@@ -252,6 +254,11 @@ export default function InvoiceModal({ isOpen, onClose, editingInvoice }: Invoic
               >
                 <option value="draft">Draft</option>
                 <option value="issued">Issued</option>
+                <option value="paid">Paid</option>
+
+                <option value="cancelled">Cancelled</option>
+
+                {/* "draft", "issued", "paid", "cancelled" */}
               </select>
             </div>
           </div>

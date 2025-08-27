@@ -33,9 +33,9 @@ const productSchema = z.object({
   sku: z.string().min(1, "SKU is required"),
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  priceDecimal: z.string().min(1, "Price is required"),
-  costDecimal: z.string().min(1, "Cost is required"),
-  stockQty: z.string().optional(),
+  priceDecimal: z.number().min(0.01, "Price is required"),
+  costDecimal: z.number().min(0.01, "Cost is required"),
+  stockQty: z.number().int().nonnegative().optional(),
 });
 
 type ProductForm = z.infer<typeof productSchema>;
@@ -60,9 +60,9 @@ export default function Products() {
       sku: "",
       name: "",
       description: "",
-      priceDecimal: "",
-      costDecimal: "",
-      stockQty: "0",
+      priceDecimal: 0,
+    costDecimal: 0,
+    stockQty: 0,
     },
   });
 
@@ -70,9 +70,9 @@ export default function Products() {
     mutationFn: async (data: ProductForm) => {
       const payload = {
         ...data,
-        priceDecimal: parseFloat(data.priceDecimal),
-        costDecimal: parseFloat(data.costDecimal),
-        stockQty: parseInt(data.stockQty || "0"),
+        priceDecimal: Number(data.priceDecimal),
+        costDecimal: Number(data.costDecimal),
+        stockQty: Number(data.stockQty || 0),
       };
       const res = await apiRequest("POST", "/api/products", payload);
       return res.json();
@@ -99,9 +99,9 @@ export default function Products() {
     mutationFn: async ({ id, data }: { id: string; data: ProductForm }) => {
       const payload = {
         ...data,
-        priceDecimal: parseFloat(data.priceDecimal),
-        costDecimal: parseFloat(data.costDecimal),
-        stockQty: parseInt(data.stockQty || "0"),
+        priceDecimal: Number(data.priceDecimal),
+        costDecimal: Number(data.costDecimal),
+        stockQty: Number(data.stockQty || 0),
       };
       const res = await apiRequest("PUT", `/api/products/${id}`, payload);
       return res.json();
@@ -159,9 +159,9 @@ export default function Products() {
       sku: product.sku,
       name: product.name,
       description: product.description || "",
-      priceDecimal: product.priceDecimal.toString(),
-      costDecimal: product.costDecimal.toString(),
-      stockQty: product.stockQty.toString(),
+      priceDecimal: Number(product.priceDecimal),
+      costDecimal: Number(product.costDecimal),
+      stockQty: Number(product.stockQty),
     });
     setIsDialogOpen(true);
   };
@@ -231,7 +231,7 @@ export default function Products() {
                   <Input
                     id="stockQty"
                     type="number"
-                    {...form.register("stockQty")}
+                    {...form.register("stockQty",{ valueAsNumber: true })}
                   />
                 </div>
               </div>
@@ -262,7 +262,7 @@ export default function Products() {
                     id="costDecimal"
                     type="number"
                     step="0.01"
-                    {...form.register("costDecimal")}
+                    {...form.register("costDecimal",{ valueAsNumber: true })}
                   />
                   {form.formState.errors.costDecimal && (
                     <p className="text-sm text-red-600">{form.formState.errors.costDecimal.message}</p>
@@ -274,8 +274,8 @@ export default function Products() {
                   <Input
                     id="priceDecimal"
                     type="number"
-                    step="0.01"
-                    {...form.register("priceDecimal")}
+                     step="0.01"
+                    {...form.register("priceDecimal",{ valueAsNumber: true })}
                   />
                   {form.formState.errors.priceDecimal && (
                     <p className="text-sm text-red-600">{form.formState.errors.priceDecimal.message}</p>
