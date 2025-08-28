@@ -12,8 +12,9 @@ import {
   Download,
   Calendar
 } from "lucide-react";
-import { apiRequest } from "@/lib/api";
+import { apiDownload, apiRequest } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@radix-ui/react-dropdown-menu";
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState({
@@ -40,6 +41,25 @@ export default function Reports() {
     if (total === 0) return "0%";
     return ((value / total) * 100).toFixed(1) + "%";
   };
+const handleDownload = async (format: "pdf" | "excel") => {
+  try {
+    const blob = await apiDownload(
+      `/api/reports/pnl/export?from=${dateRange.from}&to=${dateRange.to}&format=${format}`
+    );
+
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `pnl-report.${format === "pdf" ? "pdf" : "xlsx"}`;
+    link.click();
+    link.remove();
+  } catch (err) {
+    console.error("Download failed:", err);
+  }
+};
+
+
+
 
   return (
     <div className="p-6">
@@ -48,10 +68,26 @@ export default function Reports() {
           <h1 className="text-3xl font-bold text-slate-800">Reports</h1>
           <p className="text-slate-600 mt-2">Analyze your business performance</p>
         </div>
-        <Button variant="outline">
+        {/* <Button variant="outline">
           <Download className="mr-2 w-4 h-4" />
           Export Report
-        </Button>
+        </Button> */}
+        <DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline">
+      <Download className="mr-2 w-4 h-4" />
+      Export Report
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <DropdownMenuItem onClick={() => handleDownload("pdf")}>
+      Download as PDF
+    </DropdownMenuItem>
+    <DropdownMenuItem onClick={() => handleDownload("excel")}>
+      Download as Excel
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
       </div>
 
       {/* Date Range Filter */}

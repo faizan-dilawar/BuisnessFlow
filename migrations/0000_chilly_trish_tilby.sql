@@ -60,14 +60,13 @@ CREATE TABLE `invoices` (
 	`company_id` varchar(36) NOT NULL,
 	`customer_id` varchar(36) NOT NULL,
 	`invoice_no` varchar(50) NOT NULL,
-	`date` timestamp NOT NULL,
-	`due_date` timestamp NOT NULL,
+	`date` datetime NOT NULL,
 	`invoice_status` enum('draft','issued','paid','cancelled') DEFAULT 'draft',
 	`sub_total` decimal(14,2) NOT NULL,
 	`tax_total` decimal(14,2) NOT NULL,
 	`total` decimal(14,2) NOT NULL,
 	`notes` text,
-	`created_at` timestamp DEFAULT (now()),
+	`created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT `invoices_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
@@ -87,9 +86,9 @@ CREATE TABLE `products` (
 	`sku` varchar(100) NOT NULL,
 	`name` varchar(255) NOT NULL,
 	`description` text,
-	`price_decimal` decimal(14,2) NOT NULL,
-	`cost_decimal` decimal(14,2) NOT NULL,
-	`stock_qty` int DEFAULT 0,
+	`price_decimal` decimal(10,2) NOT NULL,
+	`cost_decimal` decimal(10,2) NOT NULL,
+	`stock_qty` int NOT NULL DEFAULT 0,
 	`created_at` timestamp DEFAULT (now()),
 	CONSTRAINT `products_id` PRIMARY KEY(`id`)
 );
@@ -99,7 +98,9 @@ CREATE TABLE `users` (
 	`email` varchar(255) NOT NULL,
 	`passwordHash` text NOT NULL,
 	`name` varchar(255) NOT NULL,
+	`role` enum('admin') DEFAULT 'admin',
 	`created_at` timestamp DEFAULT (now()),
+	`updated_at` timestamp DEFAULT (now()),
 	CONSTRAINT `users_id` PRIMARY KEY(`id`),
 	CONSTRAINT `users_email_unique` UNIQUE(`email`)
 );

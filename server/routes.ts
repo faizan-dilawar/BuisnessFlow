@@ -4,14 +4,18 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { hashPassword, verifyPassword, generateTokens, verifyAccessToken } from "./services/auth";
-import { generateInvoicePDF } from "./services/pdf";
+import { generateInvoicePDF, generatePnLPDF } from "./services/pdf";
 import { 
   insertUserSchema, insertCompanySchema, insertCustomerSchema, insertProductSchema, 
   insertInvoiceSchema, insertInvoiceItemSchema, insertPaymentSchema, insertExpenseSchema, 
   companies,
   users,
-  insertCustomerWithCompanySchema
+  insertCustomerWithCompanySchema,
+  backendExpenseSchema
 } from "@shared/schema";
+import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
+
 // import { db } from "./db";
 // import { v4 as uuidv4 } from "uuid";
 // import bcrypt from "bcryptjs";
@@ -26,9 +30,10 @@ const authLimiter = rateLimit({
 
 // Middleware to verify JWT token
 const authenticateToken = async (req: Request, res: Response, next: Function) => {
-  // console.log('reBody',req.headers)
+  console.log('reBody',req.headers)
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
+  console.log('token',token)
 
   if (!token) {
     return res.status(401).json({ message: 'Access token required' });
@@ -433,19 +438,31 @@ app.post("/api/invoices", authenticateToken, async (req: Request, res: Response)
     res.json(expenses);
   });
 
-  app.post("/api/expenses", authenticateToken, async (req: Request, res: Response) => {
-    try {
-      const user = (req as any).user;
-      const company = await storage.getCompanyByUserId(user.id);
-      if (!company) return res.status(404).json({ message: "Company not found" });
+app.post("/api/expenses", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const company = await storage.getCompanyByUserId(user.id);
+    if (!company) return res.status(404).json({ message: "Company not found" });
 
-      const expenseData = insertExpenseSchema.parse(req.body);
-      const expense = await storage.createExpense({ ...expenseData, companyId: company.id });
-      res.status(201).json(expense);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid expense data" });
-    }
-  });
+    // validate client input
+    const expenseData = insertExpenseSchema.parse(req.body);
+
+    // validate backend insert (with companyId)
+    const fullExpense = backendExpenseSchema.parse({
+      ...expenseData,
+      companyId: company.id,
+    });
+
+    const expense = await storage.createExpense(fullExpense);
+
+    res.status(201).json(expense);
+  } catch (error: any) {
+    console.error(error);
+    res.status(400).json({ message: "Invalid expense data", error });
+  }
+});
+
+
 
   app.put("/api/expenses/:id", authenticateToken, async (req: Request, res: Response) => {
     try {
@@ -463,8 +480,9 @@ app.post("/api/invoices", authenticateToken, async (req: Request, res: Response)
   });
 
   // Analytics routes
-  app.get("/api/analytics/dashboard", authenticateToken, async (req: Request, res: Response) => {
+  app.get("/api/dashboard/metrics", authenticateToken, async (req: Request, res: Response) => {
     const user = (req as any).user;
+    console.log("User:", user);
     const company = await storage.getCompanyByUserId(user.id);
     if (!company) return res.status(404).json({ message: "Company not found" });
 
@@ -499,6 +517,113 @@ console.log("Date range:", thirtyDaysAgo.toISOString(), "→", today.toISOString
       res.status(400).json({ message: "Invalid date range" });
     }
   });
+
+  //rports download :
+app.get("/api/reports/pnl/export", authenticateToken, async (req, res) => {
+ try {
+    const { format, from, to } = req.query as {
+      format: string;
+      from: string;
+      to: string;
+    };
+
+    const user = (req as any).user;
+    const company = await storage.getCompanyByUserId(user.id);
+    if (!company) return res.status(404).json({ message: "Company not found" });
+
+    // ✅ Your DB fetch
+    const pnl = await storage.getProfitLoss(company.id, new Date(from), new Date(to));
+
+    if (format === "pdf") {
+      const pdf = await generatePnLPDF({
+        from,
+        to,
+        rows: [
+          { account: "Revenue", debit: 0, credit: pnl.revenue, balance: pnl.revenue },
+          { account: "COGS", debit: pnl.cogs, credit: 0, balance: -pnl.cogs },
+          { account: "Expenses", debit: pnl.expenses, credit: 0, balance: -pnl.expenses },
+        ],
+        companyName: company.name,
+      });
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="pnl-report.pdf"`);
+      res.send(pdf);
+      return;
+    }
+
+    if (format === "excel") {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("Profit & Loss");
+
+      // Header
+      sheet.mergeCells("A1:D1");
+      sheet.getCell("A1").value = `${company.name} - Profit & Loss Report`;
+      sheet.getCell("A1").font = { size: 16, bold: true };
+      sheet.getCell("A1").alignment = { horizontal: "center" };
+
+      sheet.addRow([]);
+      sheet.addRow([`Period: ${from} → ${to}`]).font = { italic: true };
+      sheet.addRow([]);
+
+      // Table header
+      const headerRow = sheet.addRow(["Account", "Debit", "Credit", "Balance"]);
+      headerRow.font = { bold: true };
+      headerRow.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFE5E7EB" }, // light gray
+        };
+      });
+
+      // Data rows
+      const rows = [
+        ["Revenue", 0, pnl.revenue, pnl.revenue],
+        ["COGS", pnl.cogs, 0, -pnl.cogs],
+        ["Expenses", pnl.expenses, 0, -pnl.expenses],
+        ["Gross Profit", 0, 0, pnl.grossProfit],
+        ["Net Profit", 0, 0, pnl.netProfit],
+      ];
+
+      rows.forEach((r) => sheet.addRow(r));
+
+      // Auto width
+      sheet.columns.forEach((col) => {
+        let maxLength = 15;
+        if (typeof col.eachCell === "function") {
+          col.eachCell({ includeEmpty: true }, (cell) => {
+            maxLength = Math.max(maxLength, (cell.value?.toString()?.length ?? 0) + 2);
+          });
+        }
+        col.width = maxLength;
+      });
+
+      // Send
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader("Content-Disposition", `attachment; filename="pnl-report.xlsx"`);
+
+      await workbook.xlsx.write(res);
+      res.end();
+      return;
+    }
+
+    res.status(400).json({ message: "Invalid format" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error generating report" });
+  }
+});
+
 
   // Company settings
   app.put("/api/company/settings", authenticateToken, async (req: Request, res: Response) => {

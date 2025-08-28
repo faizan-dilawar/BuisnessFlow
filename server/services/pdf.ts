@@ -7,7 +7,32 @@ export interface InvoiceData {
   customer: Customer;
   company: Company;
 }
+// export interface PnLRow {
+//   account: string;
+//   debit: number;
+//   credit: number;
+//   balance: number;
+// }
 
+// export interface PnLData {
+//   from: string;
+//   to: string;
+//   rows: PnLRow[];
+//   companyName: string;
+// }
+interface Row {
+  account: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+interface PnLData {
+  from: string;
+  to: string;
+  rows: Row[];
+  companyName: string;
+}
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   const html = generateInvoiceHTML(data);
   
@@ -77,7 +102,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
         </div>
         <div class="invoice-info">
           <div class="invoice-number">${invoice.invoiceNo}</div>
-          <span class="status ${invoice.status}">${invoice.status}</span>
+          <span class="status ${invoice.invoiceStatus}">${invoice.invoiceStatus}</span>
         </div>
       </div>
 
@@ -92,7 +117,7 @@ function generateInvoiceHTML(data: InvoiceData): string {
         <div class="billing-info">
           <h3>Invoice Details</h3>
           <p><strong>Date:</strong> ${new Date(invoice.date).toLocaleDateString()}</p>
-          <p><strong>Due Date:</strong> ${new Date(invoice.dueDate).toLocaleDateString()}</p>
+          <p><strong>Due Date:</strong> ${new Date(invoice.date).toLocaleDateString()}</p>
           <p><strong>Currency:</strong> ${company.currency || 'USD'}</p>
         </div>
       </div>
@@ -154,3 +179,153 @@ const formatCurrency = (amount: number, currency: string): string => {
     currency: currency,
   }).format(amount);
 };
+// export async function generatePnLPDF(data: PnLData): Promise<Buffer> {
+//   const html = generatePnLHTML(data);
+
+//   const browser = await puppeteer.launch({
+//     headless: true,
+//     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+//   });
+
+//   try {
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: "networkidle0" });
+
+//     const pdf = await page.pdf({
+//       format: "A4",
+//       printBackground: true,
+//       margin: { top: "20px", right: "20px", bottom: "20px", left: "20px" },
+//     });
+
+//     return Buffer.from(pdf);
+//   } finally {
+//     await browser.close();
+//   }
+// }
+// function generatePnLHTML(data: PnLData): string {
+//   const { companyName, from, to, rows } = data;
+
+//   const totalDebit = rows.reduce((s, r) => s + r.debit, 0);
+//   const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
+//   const net = totalCredit - totalDebit;
+
+//   return `
+//   <!DOCTYPE html>
+//   <html>
+//   <head>
+//     <meta charset="UTF-8">
+//     <title>P&L Report</title>
+//     <style>
+//       body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+//       h1 { color: #2563eb; }
+//       table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+//       th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: right; }
+//       th { background: #f9fafb; color: #374151; }
+//       td:first-child, th:first-child { text-align: left; }
+//       .total-row { font-weight: bold; background: #f3f4f6; }
+//       .net-profit { font-size: 18px; font-weight: bold; margin-top: 20px; }
+//     </style>
+//   </head>
+//   <body>
+//     <h1>${companyName} - Profit & Loss Report</h1>
+//     <p>Period: ${from} → ${to}</p>
+
+//     <table>
+//       <thead>
+//         <tr>
+//           <th>Account</th>
+//           <th>Debit</th>
+//           <th>Credit</th>
+//           <th>Balance</th>
+//         </tr>
+//       </thead>
+//       <tbody>
+//         ${rows.map(r => `
+//           <tr>
+//             <td>${r.account}</td>
+//             <td>${formatPnlCurrency(r.debit)}</td>
+//             <td>${formatPnlCurrency(r.credit)}</td>
+//             <td>${formatPnlCurrency(r.balance)}</td>
+//           </tr>
+//         `).join("")}
+//       </tbody>
+//       <tfoot>
+//         <tr class="total-row">
+//           <td>Total</td>
+//           <td>${formatPnlCurrency(totalDebit)}</td>
+//           <td>${formatPnlCurrency(totalCredit)}</td>
+//           <td>${formatPnlCurrency(net)}</td>
+//         </tr>
+//       </tfoot>
+//     </table>
+
+//     <div class="net-profit">
+//       Net ${net >= 0 ? "Profit" : "Loss"}: ${formatPnlCurrency(net)}
+//     </div>
+//   </body>
+//   </html>
+//   `;
+// }
+const formatPnlCurrency = (val: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+export async function generatePnLPDF(data: PnLData): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    headless: true, // ensures compatibility with latest Puppeteer
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+
+  try {
+    const page = await browser.newPage();
+
+    const html = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { text-align: center; margin-bottom: 10px; }
+            h3 { text-align: center; margin-top: 0; font-weight: normal; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #333; padding: 8px; text-align: right; }
+            th { background: #f3f3f3; }
+            td:first-child, th:first-child { text-align: left; }
+          </style>
+        </head>
+        <body>
+          <h1>${data.companyName}</h1>
+          <h3>Profit & Loss Report</h3>
+          <p style="text-align:center;">From: ${data.from} &nbsp;&nbsp; To: ${data.to}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Debit</th>
+                <th>Credit</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.rows
+                .map(
+                  (row) => `
+                <tr>
+                  <td>${row.account}</td>
+                  <td>${row.debit.toFixed(2)}</td>
+                  <td>${row.credit.toFixed(2)}</td>
+                  <td>${row.balance.toFixed(2)}</td>
+                </tr>`
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdfBuffer = await page.pdf({ format: "A4" });
+
+    return Buffer.from(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
+}

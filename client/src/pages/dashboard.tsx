@@ -26,9 +26,9 @@ export default function Dashboard() {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["/api/analytics/dashboard"],
+    queryKey: ["/api/dashboard/metrics"],
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/analytics/dashboard");
+      const res = await apiRequest("GET", "/api/dashboard/metrics");
       console.log("DAshboard",res)
       return res.json();
     },

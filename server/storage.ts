@@ -5,7 +5,8 @@ import {
   users, companies, customers, products, invoices, invoiceItems, payments, expenses, counters,
   type User, type InsertUser, type Company, type InsertCompany, type Customer, type InsertCustomer,
   type Product, type InsertProduct, type Invoice, type InsertInvoice, type InvoiceItem, type InsertInvoiceItem,
-  type Payment, type InsertPayment, type Expense, type InsertExpense
+  type Payment, type InsertPayment, type Expense, type InsertExpense,
+  BackendExpenseInput
 } from "@shared/schema";
 export const db = await getDb();
 
@@ -242,7 +243,7 @@ console.log("Fetched user:", user);
   //   }
 
   //   // Update stock quantities if invoice is issued
-  //   if (invoice.status === "issued") {
+  //   if (invoice.invoiceStatuss === "issued") {
   //     for (const item of items) {
   //       await db
   //         .update(products)
@@ -394,16 +395,30 @@ console.log("Fetched user:", user);
     return await db.select().from(expenses).where(eq(expenses.companyId, companyId)).orderBy(desc(expenses.date));
   }
 
-  async createExpense(insertExpense: InsertExpense): Promise<Expense> {
-    const id = randomUUID();
-    // const [expense] = await db
-    //   .insert(expenses)
-    //   .values({ ...insertExpense, id })
-    //   .returning();
-    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+async createExpense(expenseData: BackendExpenseInput): Promise<Expense> {
+  return await db.transaction(async (tx) => {
+    // 1️⃣ Create expense
+    const expenseId = randomUUID();
 
-    return expense;
-  }
+    await tx.insert(expenses).values({
+      id: expenseId,
+      companyId: expenseData.companyId,
+      date: expenseData.date,
+      amount: expenseData.amount,
+      vendor: expenseData.vendor,
+      category: expenseData.category,
+      notes: expenseData.notes,
+    });
+
+    // 2️⃣ Fetch back inserted expense
+    const [createdExpense] = await tx
+      .select()
+      .from(expenses)
+      .where(eq(expenses.id, expenseId));
+
+    return createdExpense;
+  });
+}
 
   async updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense> {
     const [updated] = await db
@@ -508,12 +523,30 @@ console.log("Fetched user:", user);
           lte(expenses.date, toDate)
         )
       );
+       // Profit = sum((priceDecimal - costDecimal) * quantity) for paid invoices
+  const profitResult = await db
+    .select({
+      total: sum(
+        sql`${invoiceItems.qty} * (${invoiceItems.unitPrice} - ${products.costDecimal})`
+      ),
+    })
+    .from(invoiceItems)
+    .innerJoin(products, eq(invoiceItems.productId, products.id))
+    .innerJoin(invoices, eq(invoiceItems.invoiceId, invoices.id))
+    .where(
+      and(
+        eq(invoices.companyId, companyId),
+        eq(invoices.invoiceStatus, "paid"),
+        gte(invoices.date, fromDate),
+        lte(invoices.date, toDate)
+      )
+    );
   
     // Normalize
     const revenue = Number(revenueResult[0]?.total ?? 0);
     const outstanding = Number(outstandingResult[0]?.total ?? 0);
     const expensesTotal = Number(expensesResult[0]?.total ?? 0);
-    const profit = revenue - expensesTotal;
+  const profit = Number(profitResult[0]?.total ?? 0);
   
     return { revenue, outstanding, expenses: expensesTotal, profit };
   }

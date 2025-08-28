@@ -258,7 +258,24 @@ export const insertInvoiceItemSchema = createInsertSchema(invoiceItems, {
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true });
-export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
+// export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
+// What frontend sends
+export const insertExpenseSchema = createInsertSchema(expenses)
+  .omit({ id: true, createdAt: true, companyId: true })
+  .extend({
+    amount: z.coerce.string(),
+    date: z.coerce.date(),
+  });
+
+// What backend actually inserts
+export const backendExpenseSchema = insertExpenseSchema.extend({
+  companyId: z.string(),
+});
+
+// Types
+export type InsertExpenseInput = z.infer<typeof insertExpenseSchema>;   // frontend
+export type BackendExpenseInput = z.infer<typeof backendExpenseSchema>; // backend
+
 
 // Types
 export type User = typeof users.$inferSelect;

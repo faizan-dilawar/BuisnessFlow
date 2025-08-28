@@ -221,7 +221,7 @@ export default function Invoices() {
                               <Download className="mr-2 h-4 w-4" />
                               Download PDF
                             </DropdownMenuItem>
-                            {invoice.status === "draft" && (
+                            {invoice.invoiceStatuss === "draft" && (
                               <DropdownMenuItem 
                                 onClick={() => handleStatusUpdate(invoice.invoiceStatus, "issued")}
                               >
@@ -229,7 +229,7 @@ export default function Invoices() {
                                 Issue Invoice
                               </DropdownMenuItem>
                             )}
-                            {invoice.status === "issued" && (
+                            {invoice.invoiceStatuss === "issued" && (
                               <DropdownMenuItem 
                                 onClick={() => handleStatusUpdate(invoice.invoiceStatus, "paid")}
                               >

@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "9f1903c8-c8b5-44b1-92b8-e009aa1f1cff",
+  "id": "70274efe-85cb-47c7-8d7d-743854416e05",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "companies": {
@@ -389,14 +389,7 @@
         },
         "date": {
           "name": "date",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "due_date": {
-          "name": "due_date",
-          "type": "timestamp",
+          "type": "datetime",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -443,7 +436,7 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false,
-          "default": "(now())"
+          "default": "CURRENT_TIMESTAMP"
         }
       },
       "indexes": {},
@@ -558,14 +551,14 @@
         },
         "price_decimal": {
           "name": "price_decimal",
-          "type": "decimal(14,2)",
+          "type": "decimal(10,2)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
         "cost_decimal": {
           "name": "cost_decimal",
-          "type": "decimal(14,2)",
+          "type": "decimal(10,2)",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -574,7 +567,7 @@
           "name": "stock_qty",
           "type": "int",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false,
           "default": 0
         },
@@ -631,8 +624,24 @@
           "notNull": true,
           "autoincrement": false
         },
+        "role": {
+          "name": "role",
+          "type": "enum('admin')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'admin'"
+        },
         "created_at": {
           "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false,
