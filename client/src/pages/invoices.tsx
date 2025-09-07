@@ -216,7 +216,7 @@ export default function Invoices() {
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              onClick={() => handleDownloadPDF(invoice.invoiceStatus, invoice.invoiceNo)}
+                              onClick={() => handleDownloadPDF(invoice.id, invoice.invoiceNo)}
                             >
                               <Download className="mr-2 h-4 w-4" />
                               Download PDF

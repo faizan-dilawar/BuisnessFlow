@@ -20,6 +20,7 @@ import PDFDocument from "pdfkit";
 // import { v4 as uuidv4 } from "uuid";
 // import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { getPnLTransactions, getTransactions } from "./services/External/transaction";
 
 // Rate limiting for auth endpoints
 const authLimiter = rateLimit({
@@ -398,7 +399,7 @@ app.post("/api/invoices", authenticateToken, async (req: Request, res: Response)
       const user = (req as any).user;
       const company = await storage.getCompanyByUserId(user.id);
       if (!company) return res.status(404).json({ message: "Company not found" });
-
+console.log("req.params.id",req.params.id)
       const invoice = await storage.getInvoiceWithItems(req.params.id);
       if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
@@ -517,48 +518,373 @@ console.log("Date range:", thirtyDaysAgo.toISOString(), "→", today.toISOString
       res.status(400).json({ message: "Invalid date range" });
     }
   });
+  app.get(
+  "/api/reports/transaction",
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const user = (req as any).user;
+      const company = await storage.getCompanyByUserId(user.id);
+      if (!company) {
+        return res.status(404).json({ message: "Company not found" });
+      }
+
+      const { from, to } = z
+        .object({
+          from: z.string().transform((str) => new Date(str)),
+          to: z.string().transform((str) => new Date(str)),
+        })
+        .parse(req.query);
+
+      // fetch raw transactions
+      // const rawTransactions = await storage.getTransactions(
+      //   company.id,
+      //   from,
+      //   to
+      // );
+      const rawTransactions = await getTransactions(company.id, new Date(from), new Date(to));
+
+
+      // add running balance
+      let balance = 0;
+    const transactions = rawTransactions.map((t) => ({
+  ...t,
+  balance: Number(t.balance), // use SQL computed balance
+}));
+
+
+      res.json(transactions);
+    } catch (error) {
+      console.error(error);
+      res.status(400).json({ message: "Invalid date range" });
+    }
+  }
+);
+
 
   //rports download :
+// app.get("/api/reports/pnl/export", authenticateToken, async (req, res) => {
+//  try {
+//     const { format, from, to } = req.query as {
+//       format: string;
+//       from: string;
+//       to: string;
+//     };
+
+//     const user = (req as any).user;
+//     const company = await storage.getCompanyByUserId(user.id);
+//     if (!company) return res.status(404).json({ message: "Company not found" });
+
+//     // ✅ Your DB fetch
+//     const pnl = await storage.getProfitLoss(company.id, new Date(from), new Date(to));
+
+//     if (format === "pdf") {
+//       // const pdf = await generatePnLPDF({
+//       //   from,
+//       //   to,
+//       //   rows: [
+//       //     { account: "Revenue", debit: 0, credit: pnl.revenue, balance: pnl.revenue },
+//       //     { account: "COGS", debit: pnl.cogs, credit: 0, balance: -pnl.cogs },
+//       //     { account: "Expenses", debit: pnl.expenses, credit: 0, balance: -pnl.expenses },
+//       //   ],
+//       //   companyName: company.name,
+//       // });
+// const transactions = await getPnLTransactions(company.id, new Date(from), new Date(to));
+
+// const pdf = await generatePnLPDF({
+//   from,
+//   to,
+//   companyName: company.name,
+//   rows: transactions.map(t => ({
+//     account: t.account,
+//     debit: Number(t.debit),
+//     credit: Number(t.credit),
+//     balance: Number(t.credit) - Number(t.debit),
+//   })),
+// });
+
+//       res.setHeader("Content-Type", "application/pdf");
+//       res.setHeader("Content-Disposition", `attachment; filename="pnl-report.pdf"`);
+//       res.send(pdf);
+//       return;
+//     }
+
+// //    if (format === "excel") {
+// //   const workbook = new ExcelJS.Workbook();
+// //   const sheet = workbook.addWorksheet("Profit & Loss");
+
+// //   // Header
+// //   sheet.mergeCells("A1:D1");
+// //   sheet.getCell("A1").value = `${company.name} - Profit & Loss Report`;
+// //   sheet.getCell("A1").font = { size: 16, bold: true };
+// //   sheet.getCell("A1").alignment = { horizontal: "center" };
+
+// //   sheet.addRow([]);
+// //   sheet.addRow([`Period: ${from} → ${to}`]).font = { italic: true };
+// //   sheet.addRow([]);
+
+// //   // Table header
+// //   const headerRow = sheet.addRow(["Account", "Debit", "Credit", "Balance"]);
+// //   headerRow.font = { bold: true };
+// //   headerRow.eachCell((cell) => {
+// //     cell.border = {
+// //       top: { style: "thin" },
+// //       left: { style: "thin" },
+// //       bottom: { style: "thin" },
+// //       right: { style: "thin" },
+// //     };
+// //     cell.fill = {
+// //       type: "pattern",
+// //       pattern: "solid",
+// //       fgColor: { argb: "FFE5E7EB" }, // light gray
+// //     };
+// //   });
+
+// //   // 🔹 Transactions
+// //   const transactions = await getPnLTransactions(
+// //     Number(company.id),
+// //     new Date(from),
+// //     new Date(to)
+// //   );
+
+// //   transactions.forEach((t) => {
+// //     const row = sheet.addRow([
+// //       t.account,
+// //       Number(t.debit),
+// //       Number(t.credit),
+// //       Number(t.credit) - Number(t.debit),
+// //     ]);
+// //     row.eachCell((cell) => {
+// //       cell.border = {
+// //         top: { style: "thin" },
+// //         left: { style: "thin" },
+// //         bottom: { style: "thin" },
+// //         right: { style: "thin" },
+// //       };
+// //     });
+// //   });
+
+// //   // Blank row before totals
+// //   sheet.addRow([]);
+
+// //   // 🔹 Summary rows (keep design)
+// //   const rows = [
+// //     ["Revenue", 0, pnl.revenue, pnl.revenue],
+// //     ["COGS", pnl.cogs, 0, -pnl.cogs],
+// //     ["Expenses", pnl.expenses, 0, -pnl.expenses],
+// //     ["Gross Profit", 0, 0, pnl.grossProfit],
+// //     ["Net Profit", 0, 0, pnl.netProfit],
+// //   ];
+
+// //   rows.forEach((r) => {
+// //     const row = sheet.addRow(r);
+// //     if (r[0] === "Gross Profit" || r[0] === "Net Profit") {
+// //       row.font = { bold: true };
+// //     }
+// //     row.eachCell((cell) => {
+// //       cell.border = {
+// //         top: { style: "thin" },
+// //         left: { style: "thin" },
+// //         bottom: { style: "thin" },
+// //         right: { style: "thin" },
+// //       };
+// //     });
+// //   });
+
+// //   // Auto width
+// //   sheet.columns.forEach((col) => {
+// //     let maxLength = 15;
+// //     if (typeof col.eachCell === "function") {
+// //       col.eachCell({ includeEmpty: true }, (cell) => {
+// //         maxLength = Math.max(maxLength, (cell.value?.toString()?.length ?? 0) + 2);
+// //       });
+// //     }
+// //     col.width = maxLength;
+// //   });
+
+// //   // Send
+// //   res.setHeader(
+// //     "Content-Type",
+// //     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+// //   );
+// //   res.setHeader("Content-Disposition", `attachment; filename="pnl-report.xlsx"`);
+
+// //   await workbook.xlsx.write(res);
+// //   res.end();
+// //   return;
+// // }
+// if (format === "excel") {
+//   const workbook = new ExcelJS.Workbook();
+//   const sheet = workbook.addWorksheet("Profit & Loss");
+
+//   // Header
+//   sheet.mergeCells("A1:D1");
+//   sheet.getCell("A1").value = `${company.name} - Profit & Loss Report`;
+//   sheet.getCell("A1").font = { size: 16, bold: true };
+//   sheet.getCell("A1").alignment = { horizontal: "center" };
+
+//   sheet.addRow([]);
+//   sheet.addRow([`Period: ${from} → ${to}`]).font = { italic: true };
+//   sheet.addRow([]);
+
+//   // Table header
+//   const headerRow = sheet.addRow(["Account", "Debit", "Credit", "Balance"]);
+//   headerRow.font = { bold: true };
+//   headerRow.eachCell((cell) => {
+//     cell.border = {
+//       top: { style: "thin" },
+//       left: { style: "thin" },
+//       bottom: { style: "thin" },
+//       right: { style: "thin" },
+//     };
+//     cell.fill = {
+//       type: "pattern",
+//       pattern: "solid",
+//       fgColor: { argb: "FFE5E7EB" }, // light gray
+//     };
+//   });
+
+//   // 🔹 Transactions
+//   const transactions = await getPnLTransactions(
+//     String(company.id),
+//     new Date(from),
+//     new Date(to)
+//   );
+
+//   transactions.forEach((t) => {
+//     const row = sheet.addRow([
+//       t.account,
+//       Number(t.debit),
+//       Number(t.credit),
+//       Number(t.credit) - Number(t.debit),
+//     ]);
+//     row.eachCell((cell) => {
+//       cell.border = {
+//         top: { style: "thin" },
+//         left: { style: "thin" },
+//         bottom: { style: "thin" },
+//         right: { style: "thin" },
+//       };
+//     });
+//   });
+
+//   // Blank row before totals
+//   sheet.addRow(["Profit & Loss Summary"]).font = { italic: true };
+//   sheet.addRow([`Summary: ${from} → ${to}`]).font = { italic: true };
+
+//   // 🔹 Summary rows (keep design)
+//   const rows = [
+//     ["Revenue", 0, pnl.revenue, pnl.revenue],
+//     ["COGS", pnl.cogs, 0, -pnl.cogs],
+//     ["Expenses", pnl.expenses, 0, -pnl.expenses],
+//     ["Gross Profit", 0, 0, pnl.grossProfit],
+//     ["Net Profit", 0, 0, pnl.netProfit],
+//   ];
+
+//   rows.forEach((r) => {
+//     const row = sheet.addRow(r);
+//     if (r[0] === "Gross Profit" || r[0] === "Net Profit") {
+//       row.font = { bold: true };
+//     }
+//     row.eachCell((cell) => {
+//       cell.border = {
+//         top: { style: "thin" },
+//         left: { style: "thin" },
+//         bottom: { style: "thin" },
+//         right: { style: "thin" },
+//       };
+//     });
+//   });
+
+//   // Auto width
+//   sheet.columns.forEach((col) => {
+//     let maxLength = 15;
+//     if (typeof col.eachCell === "function") {
+//       col.eachCell({ includeEmpty: true }, (cell) => {
+//         maxLength = Math.max(maxLength, (cell.value?.toString()?.length ?? 0) + 2);
+//       });
+//     }
+//     col.width = maxLength;
+//   });
+
+//   // Send
+//   res.setHeader(
+//     "Content-Type",
+//     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+//   );
+//   res.setHeader("Content-Disposition", `attachment; filename="pnl-report.xlsx"`);
+
+//   await workbook.xlsx.write(res);
+//   res.end();
+//   return;
+// }
+
+
+
+//     res.status(400).json({ message: "Invalid format" });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Error generating report" });
+//   }
+// });
 app.get("/api/reports/pnl/export", authenticateToken, async (req, res) => {
- try {
-    const { format, from, to } = req.query as {
+  try {
+    const { format, from, to, type } = req.query as {
       format: string;
       from: string;
       to: string;
+      type: "pnl" | "transactions";
     };
 
     const user = (req as any).user;
     const company = await storage.getCompanyByUserId(user.id);
     if (!company) return res.status(404).json({ message: "Company not found" });
 
-    // ✅ Your DB fetch
-    const pnl = await storage.getProfitLoss(company.id, new Date(from), new Date(to));
+    // fetch based on type
+    let rows: any[] = [];
+    let title = "";
+
+    if (type === "transactions") {
+      rows = await getTransactions(company.id, new Date(from), new Date(to));
+      title = `${company.name} - Transactions Report`;
+    } else {
+      const pnl = await storage.getProfitLoss(company.id, new Date(from), new Date(to));
+      rows = [
+        { account: "Revenue", debit: 0, credit: pnl.revenue, balance: pnl.revenue },
+        { account: "COGS", debit: pnl.cogs, credit: 0, balance: -pnl.cogs },
+        { account: "Expenses", debit: pnl.expenses, credit: 0, balance: -pnl.expenses },
+        { account: "Gross Profit", debit: 0, credit: 0, balance: pnl.grossProfit },
+        { account: "Net Profit", debit: 0, credit: 0, balance: pnl.netProfit },
+      ];
+      title = `${company.name} - Profit & Loss Report`;
+    }
 
     if (format === "pdf") {
       const pdf = await generatePnLPDF({
         from,
         to,
-        rows: [
-          { account: "Revenue", debit: 0, credit: pnl.revenue, balance: pnl.revenue },
-          { account: "COGS", debit: pnl.cogs, credit: 0, balance: -pnl.cogs },
-          { account: "Expenses", debit: pnl.expenses, credit: 0, balance: -pnl.expenses },
-        ],
         companyName: company.name,
+        rows: rows.map(r => ({
+          account: r.account,
+          debit: Number(r.debit),
+          credit: Number(r.credit),
+          balance: Number(r.balance ?? (Number(r.credit) - Number(r.debit))),
+        })),
       });
 
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="pnl-report.pdf"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${type}-report.pdf"`);
       res.send(pdf);
       return;
     }
 
     if (format === "excel") {
       const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet("Profit & Loss");
+      const sheet = workbook.addWorksheet("Report");
 
       // Header
       sheet.mergeCells("A1:D1");
-      sheet.getCell("A1").value = `${company.name} - Profit & Loss Report`;
+      sheet.getCell("A1").value = title;
       sheet.getCell("A1").font = { size: 16, bold: true };
       sheet.getCell("A1").alignment = { horizontal: "center" };
 
@@ -583,16 +909,22 @@ app.get("/api/reports/pnl/export", authenticateToken, async (req, res) => {
         };
       });
 
-      // Data rows
-      const rows = [
-        ["Revenue", 0, pnl.revenue, pnl.revenue],
-        ["COGS", pnl.cogs, 0, -pnl.cogs],
-        ["Expenses", pnl.expenses, 0, -pnl.expenses],
-        ["Gross Profit", 0, 0, pnl.grossProfit],
-        ["Net Profit", 0, 0, pnl.netProfit],
-      ];
-
-      rows.forEach((r) => sheet.addRow(r));
+      rows.forEach((r) => {
+        const row = sheet.addRow([
+          r.account,
+          Number(r.debit),
+          Number(r.credit),
+          Number(r.balance ?? (Number(r.credit) - Number(r.debit))),
+        ]);
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+        });
+      });
 
       // Auto width
       sheet.columns.forEach((col) => {
@@ -605,12 +937,11 @@ app.get("/api/reports/pnl/export", authenticateToken, async (req, res) => {
         col.width = maxLength;
       });
 
-      // Send
       res.setHeader(
         "Content-Type",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       );
-      res.setHeader("Content-Disposition", `attachment; filename="pnl-report.xlsx"`);
+      res.setHeader("Content-Disposition", `attachment; filename="${type}-report.xlsx"`);
 
       await workbook.xlsx.write(res);
       res.end();

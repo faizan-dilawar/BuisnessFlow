@@ -30,7 +30,7 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-white shadow-lg border-r border-slate-200 flex flex-col">
       {/* Logo Section */}
-      <div className="p-6 border-b border-slate-200">
+      <div className="p-4 border-b border-slate-200">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <FileText className="text-white text-sm" />
@@ -42,7 +42,6 @@ export default function Sidebar() {
       {/* Navigation Menu */}
       <nav className="flex-1 py-6 px-4 space-y-2">
         {navItems.map((item) => {
-          debugger
           const Icon = item.icon;
           const isActive =
             location === item.href 

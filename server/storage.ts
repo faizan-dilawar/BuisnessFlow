@@ -9,7 +9,7 @@ import {
   BackendExpenseInput
 } from "@shared/schema";
 export const db = await getDb();
-
+import mysql from "mysql2/promise";
 export interface IStorage {
   // User operations
   
@@ -220,41 +220,18 @@ console.log("Fetched user:", user);
 
   async getInvoiceWithItems(id: string): Promise<(Invoice & { items: InvoiceItem[]; customer: Customer }) | undefined> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
+    console.log("Fetched invoice:", invoice);
+    
     if (!invoice) return undefined;
 
     const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id));
+    console.log("Fetched items:", items);
     const [customer] = await db.select().from(customers).where(eq(customers.id, invoice.customerId));
+    console.log("Fetched customer:", customer);
 
     return { ...invoice, items, customer };
   }
 
-  // async createInvoice(invoice: InsertInvoice, items: InsertInvoiceItem[]): Promise<Invoice> {
-  //   const id = randomUUID();
-    
-  //   // Start transaction
-  //   const [newInvoice] = await db
-  //     .insert(invoices)
-  //     .values({ ...invoice, id })
-  //     .returning();
-
-  //   // Insert invoice items
-  //   for (const item of items) {
-  //     await db.insert(invoiceItems).values({ ...item, id: randomUUID(), invoiceId: id });
-  //   }
-
-  //   // Update stock quantities if invoice is issued
-  //   if (invoice.invoiceStatuss === "issued") {
-  //     for (const item of items) {
-  //       await db
-  //         .update(products)
-  //         .set({ stockQty: sql`stock_qty - ${item.qty}` })
-  //         .where(eq(products.id, item.productId));
-  //     }
-  //   }
-
-  //   return newInvoice;
-  // }
-  // storage.ts
 
   async createInvoice(invoiceData: any, items: any[]) {
     return await db.transaction(async (tx) => {
@@ -433,49 +410,7 @@ async createExpense(expenseData: BackendExpenseInput): Promise<Expense> {
     await db.delete(expenses).where(eq(expenses.id, id));
   }
 
-  // async getDashboardMetrics(companyId: string, fromDate: Date, toDate: Date): Promise<{
-  //   revenue: number;
-  //   outstanding: number;
-  //   expenses: number;
-  //   profit: number;
-  // }> {
-  //   // Revenue from paid invoices
-  //   const revenueResult = await db
-  //     .select({ total: sum(invoices.total) })
-  //     .from(invoices)
-  //     .where(and(
-  //       eq(invoices.companyId, companyId),
-  //       eq(invoices.invoiceStatus, "paid"),
-  //       gte(invoices.date, fromDate),
-  //       lte(invoices.date, toDate)
-  //     ));
-
-  //   // Outstanding amount from issued invoices
-  //   const outstandingResult = await db
-  //     .select({ total: sum(invoices.total) })
-  //     .from(invoices)
-  //     .where(and(
-  //       eq(invoices.companyId, companyId),
-  //       eq(invoices.invoiceStatus, "issued")
-  //     ));
-
-  //   // Total expenses
-  //   const expensesResult = await db
-  //     .select({ total: sum(expenses.amount) })
-  //     .from(expenses)
-  //     .where(and(
-  //       eq(expenses.companyId, companyId),
-  //       gte(expenses.date, fromDate),
-  //       lte(expenses.date, toDate)
-  //     ));
-
-  //   const revenue = Number(revenueResult[0]?.total || 0);
-  //   const outstanding = Number(outstandingResult[0]?.total || 0);
-  //   const expensesTotal = Number(expensesResult[0]?.total || 0);
-  //   const profit = revenue - expensesTotal;
-
-  //   return { revenue, outstanding, expenses: expensesTotal, profit };
-  // }
+  
   async getDashboardMetrics(
     companyId: string,
     fromDate: Date,
@@ -614,6 +549,9 @@ async createExpense(expenseData: BackendExpenseInput): Promise<Expense> {
       ))
       .orderBy(asc(products.stockQty));
   }
+  // storage.ts
+
+
 }
 
 export const storage = new DatabaseStorage();

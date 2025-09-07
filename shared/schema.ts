@@ -43,9 +43,6 @@ export const companies = mysqlTable("companies", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-
-
-
 // Customers table
 export const customers = mysqlTable("customers", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -70,7 +67,6 @@ export const products = mysqlTable("products", {
   stockQty: int("stock_qty").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
-
 // Counters for invoice numbering
 export const counters = mysqlTable("counters", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -79,7 +75,6 @@ export const counters = mysqlTable("counters", {
   month: varchar("month", { length: 20 }).notNull(),
   sequence: int("sequence").default(0),
 });
-
 // Invoices table
 export const invoices = mysqlTable("invoices", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -100,8 +95,6 @@ export const invoices = mysqlTable("invoices", {
   // ✅ MySQL-safe default (don’t use .defaultNow())
   createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
-
-
 // Invoice Items table
 export const invoiceItems = mysqlTable("invoice_items", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -113,7 +106,6 @@ export const invoiceItems = mysqlTable("invoice_items", {
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("0.00"),
   lineTotal: decimal("line_total", { precision: 14, scale: 2 }).notNull(),
 });
-
 // Payments table
 export const payments = mysqlTable("payments", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -123,7 +115,6 @@ export const payments = mysqlTable("payments", {
   paidAt: timestamp("paid_at").notNull(),
   reference: varchar("reference", { length: 255 }),
 });
-
 // Expenses table
 export const expenses = mysqlTable("expenses", {
   id: varchar("id", { length: 36 }).primaryKey(),
@@ -135,7 +126,6 @@ export const expenses = mysqlTable("expenses", {
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-
 // Relations
 export const userRelations = relations(users, ({ one }) => ({
   company: one(companies, {
@@ -143,7 +133,6 @@ export const userRelations = relations(users, ({ one }) => ({
     references: [companies.userId],
   }),
 }));
-
 export const companyRelations = relations(companies, ({ one, many }) => ({
   user: one(users, {
     fields: [companies.userId],
@@ -154,7 +143,6 @@ export const companyRelations = relations(companies, ({ one, many }) => ({
   invoices: many(invoices),
   expenses: many(expenses),
 }));
-
 export const customerRelations = relations(customers, ({ one, many }) => ({
   company: one(companies, {
     fields: [customers.companyId],
@@ -162,7 +150,6 @@ export const customerRelations = relations(customers, ({ one, many }) => ({
   }),
   invoices: many(invoices),
 }));
-
 export const productRelations = relations(products, ({ one, many }) => ({
   company: one(companies, {
     fields: [products.companyId],
@@ -170,7 +157,6 @@ export const productRelations = relations(products, ({ one, many }) => ({
   }),
   invoiceItems: many(invoiceItems),
 }));
-
 export const invoiceRelations = relations(invoices, ({ one, many }) => ({
   company: one(companies, {
     fields: [invoices.companyId],

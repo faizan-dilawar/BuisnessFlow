@@ -1,5 +1,8 @@
 import puppeteer from "puppeteer";
 import { type Invoice, type InvoiceItem, type Customer, type Company } from "@shared/schema";
+import os from "os";
+import path from "path";
+import fs from "fs";
 
 export interface InvoiceData {
   invoice: Invoice;
@@ -269,9 +272,14 @@ const formatCurrency = (amount: number, currency: string): string => {
 const formatPnlCurrency = (val: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 export async function generatePnLPDF(data: PnLData): Promise<Buffer> {
+    const tempProfile = fs.mkdtempSync(path.join(os.tmpdir(), "pnl-chrome-"));
+
   const browser = await puppeteer.launch({
-    headless: true, // ensures compatibility with latest Puppeteer
+  headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    userDataDir: tempProfile, // 👈 ensures no profile lock
+    executablePath: puppeteer.executablePath(), // 👈 keeps your setup
+
   });
 
   try {
@@ -327,5 +335,7 @@ export async function generatePnLPDF(data: PnLData): Promise<Buffer> {
     return Buffer.from(pdfBuffer);
   } finally {
     await browser.close();
+        fs.rmSync(tempProfile, { recursive: true, force: true });
+
   }
 }
